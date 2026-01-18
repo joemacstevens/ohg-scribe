@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OHG Scribe - Options Panel v2 (Pharma Context)</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --magenta: #E91388;
+      --magenta-light: #F74BA5;
+      --purple: #6B2D7B;
+      --navy: #1A2B4A;
+      --navy-light: #2D4066;
+      --lavender-light: #F8F5FA;
+      --lavender: #F0EBF5;
+      --lavender-dark: #E8E0F0;
+      --gray-100: #F9FAFB;
+      --gray-200: #E5E7EB;
+      --gray-300: #D1D5DB;
+      --gray-400: #9CA3AF;
+      --gray-500: #6B7280;
+      --gray-600: #4B5563;
+      --white: #FFFFFF;
+      --success: #10B981;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      padding: 40px;
+      min-height: 100vh;
+    }
+    
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 16px;
+      font-weight: 300;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      color: var(--gray-400);
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 14px;
+    }
+    
+    h2 {
+      color: white;
+      margin: 60px 0 20px;
+      font-weight: 400;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .mockup-row {
+      display: flex;
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+      justify-content: center;
+    }
+    
+    .panel-container {
+      background: #2a2a3e;
+      border-radius: 16px;
+      padding: 20px;
+      width: 400px;
+    }
+    
+    .panel-label {
+      color: var(--gray-400);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .badge {
+      background: var(--magenta);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    
+    /* Panel Styles */
+    .options-panel {
+      background: var(--white);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    
+    .section:last-child {
+      border-bottom: none;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .section-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--lavender);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .section-icon svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--purple);
+    }
+    
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    
+    .section-subtitle {
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-top: 2px;
+    }
+    
+    .section-content {
+      margin-left: 38px;
+    }
+    
+    .input-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .input-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .input-group {
+      flex: 1;
+    }
+    
+    .input-group.small {
+      flex: 0 0 100px;
+    }
+    
+    .input-label {
+      font-size: 11px;
+      color: var(--gray-500);
+      margin-bottom: 4px;
+      display: block;
+    }
+    
+    .new-select,
+    .new-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--navy);
+      background: var(--gray-100);
+      transition: all 0.2s;
+    }
+    
+    .new-select:focus,
+    .new-input:focus {
+      outline: none;
+      border-color: var(--magenta);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(233, 19, 136, 0.1);
+    }
+    
+    .new-input::placeholder {
+      color: var(--gray-400);
+    }
+    
+    /* Vocabulary with Preset Dropdown */
+    .vocab-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    
+    .vocab-input-wrap {
+      flex: 1;
+    }
+    
+    .preset-dropdown {
+      position: relative;
+    }
+    
+    .preset-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--lavender);
+      border: 1px solid var(--lavender-dark);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--purple);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .preset-btn:hover {
+      background: var(--lavender-dark);
+    }
+    
+    .preset-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--purple);
+    }
+    
+    .preset-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      width: 240px;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      z-index: 100;
+      overflow: hidden;
+    }
+    
+    .preset-menu-header {
+      padding: 12px 14px;
+      background: var(--lavender-light);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .preset-menu-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--navy);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .preset-menu-search {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 8px;
+      background: white;
+    }
+    
+    .preset-menu-list {
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    
+    .preset-category {
+      padding: 8px 14px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .preset-item {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--navy);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.15s;
+    }
+    
+    .preset-item:hover {
+      background: var(--lavender-light);
+    }
+    
+    .preset-item.selected {
+      background: linear-gradient(135deg, rgba(233, 19, 136, 0.08) 0%, rgba(107, 45, 123, 0.08) 100%);
+      color: var(--magenta);
+    }
+    
+    .preset-item .check {
+      width: 16px;
+      height: 16px;
+      stroke: var(--magenta);
+      opacity: 0;
+    }
+    
+    .preset-item.selected .check {
+      opacity: 1;
+    }
+    
+    .preset-count {
+      font-size: 10px;
+      color: var(--gray-400);
+      background: var(--gray-100);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .preset-item.selected .preset-count {
+      background: rgba(233, 19, 136, 0.15);
+      color: var(--magenta);
+    }
+    
+    .preset-menu-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--gray-200);
+      background: var(--gray-100);
+    }
+    
+    .preset-menu-footer a {
+      font-size: 12px;
+      color: var(--purple);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .preset-menu-footer svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--purple);
+    }
+    
+    /* Selected preset tags */
+    .selected-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    
+    .preset-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px 4px 10px;
+      background: linear-gradient(135deg, rgba(233, 19, 136, 0.1) 0%, rgba(107, 45, 123, 0.1) 100%);
+      border: 1px solid rgba(233, 19, 136, 0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--magenta);
+    }
+    
+    .preset-tag .remove {
+      width: 14px;
+      height: 14px;
+      stroke: var(--magenta);
+      cursor: pointer;
+      opacity: 0.6;
+    }
+    
+    .preset-tag .remove:hover {
+      opacity: 1;
+    }
+    
+    /* Toggle Switches */
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    
+    .toggle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--gray-100);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    
+    .toggle-item:hover {
+      background: var(--lavender);
+    }
+    
+    .toggle-item.active {
+      background: linear-gradient(135deg, rgba(233, 19, 136, 0.08) 0%, rgba(107, 45, 123, 0.08) 100%);
+      border-color: rgba(233, 19, 136, 0.3);
+    }
+    
+    .toggle-item.active .toggle-label {
+      color: var(--magenta);
+    }
+    
+    .toggle-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gray-600);
+    }
+    
+    .toggle-switch {
+      width: 36px;
+      height: 20px;
+      background: var(--gray-300);
+      border-radius: 10px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    .toggle-item.active .toggle-switch {
+      background: linear-gradient(135deg, var(--magenta) 0%, var(--purple) 100%);
+    }
+    
+    .toggle-item.active .toggle-switch::after {
+      left: 18px;
+    }
+    
+    /* Inline Help */
+    .inline-help {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--lavender-light);
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    
+    .inline-help svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--purple);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    
+    .inline-help p {
+      font-size: 11px;
+      color: var(--gray-500);
+      line-height: 1.4;
+    }
+    
+    /* Notes Section */
+    .notes {
+      max-width: 800px;
+      margin: 60px auto 0;
+    }
+    
+    .notes-card {
+      background: #2a2a3e;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .notes-card h3 {
+      color: white;
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .notes-card h3 .badge {
+      font-size: 10px;
+    }
+    
+    .notes-card p {
+      color: var(--gray-400);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    
+    .notes-card ul {
+      list-style: none;
+      margin-top: 16px;
+    }
+    
+    .notes-card li {
+      color: var(--gray-400);
+      font-size: 14px;
+      padding: 8px 0;
+      border-bottom: 1px solid #3a3a4e;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    
+    .notes-card li:last-child {
+      border-bottom: none;
+    }
+    
+    .notes-card li::before {
+      content: '→';
+      color: var(--magenta);
+    }
+    
+    .notes-card code {
+      background: #3a3a4e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--magenta-light);
+    }
+  </style>
+</head>
+<body>
+  <h1>OHG Scribe — Options Panel v2</h1>
+  <p class="subtitle">Redesigned for pharma context with disease area vocabularies</p>
+  
+  <div class="mockup-row">
+    
+    <!-- IMPROVED DESIGN -->
+    <div class="panel-container">
+      <div class="panel-label">
+        <span class="badge">Proposed</span>
+        Improved Options Panel
+      </div>
+      <div class="options-panel">
+        
+        <!-- Speakers Section -->
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <div>
+              <div class="section-title">Speakers</div>
+            </div>
+          </div>
+          <div class="section-content">
+            <div class="input-row">
+              <div class="input-group small">
+                <label class="input-label">Count</label>
+                <select class="new-select">
+                  <option>Auto</option>
+                  <option>2</option>
+                  <option>3</option>
+                  <option>4</option>
+                  <option>5+</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Conversation type</label>
+                <select class="new-select">
+                  <option>Generic (A, B, C...)</option>
+                  <option>Interview</option>
+                  <option>Podcast / Show</option>
+                  <option>Customer Call</option>
+                  <option>Meeting / Presentation</option>
+                  <option>Panel Discussion</option>
+                </select>
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label class="input-label">Speaker names (optional)</label>
+                <input type="text" class="new-input" placeholder="Dr. Smith, Lindsay, Kate">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Vocabulary Section -->
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="section-title">Vocabulary</div>
+              <div class="section-subtitle">Improve recognition of domain terms</div>
+            </div>
+          </div>
+          <div class="section-content">
+            <div class="vocab-row">
+              <div class="vocab-input-wrap">
+                <label class="input-label">Boost words</label>
+                <input type="text" class="new-input" placeholder="Add terms separated by commas">
+              </div>
+              <div class="preset-dropdown">
+                <button class="preset-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Disease Areas
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                
+                <!-- Dropdown Menu (shown for demo) -->
+                <div class="preset-menu">
+                  <div class="preset-menu-header">
+                    <div class="preset-menu-title">Disease Area Vocabularies</div>
+                    <input type="text" class="preset-menu-search" placeholder="Search...">
+                  </div>
+                  <div class="preset-menu-list">
+                    <div class="preset-category">Oncology</div>
+                    <div class="preset-item selected">
+                      <span>Lung Cancer</span>
+                      <svg class="check" viewBox="0 0 24 24" fill="none" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                    <div class="preset-item">
+                      <span>Breast Cancer</span>
+                      <span class="preset-count">142 terms</span>
+                    </div>
+                    <div class="preset-item">
+                      <span>Colorectal Cancer</span>
+                      <span class="preset-count">98 terms</span>
+                    </div>
+                    <div class="preset-category">Immunology</div>
+                    <div class="preset-item selected">
+                      <span>Rheumatoid Arthritis</span>
+                      <svg class="check" viewBox="0 0 24 24" fill="none" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                    <div class="preset-item">
+                      <span>Psoriasis</span>
+                      <span class="preset-count">76 terms</span>
+                    </div>
+                    <div class="preset-category">Cardiology</div>
+                    <div class="preset-item">
+                      <span>Heart Failure</span>
+                      <span class="preset-count">124 terms</span>
+                    </div>
+                    <div class="preset-item">
+                      <span>Atrial Fibrillation</span>
+                      <span class="preset-count">89 terms</span>
+                    </div>
+                    <div class="preset-category">Neurology</div>
+                    <div class="preset-item">
+                      <span>Multiple Sclerosis</span>
+                      <span class="preset-count">156 terms</span>
+                    </div>
+                    <div class="preset-item">
+                      <span>Parkinson's Disease</span>
+                      <span class="preset-count">134 terms</span>
+                    </div>
+                  </div>
+                  <div class="preset-menu-footer">
+                    <a href="#">
+                      <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                      </svg>
+                      Manage vocabularies
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Selected presets shown as tags -->
+            <div class="selected-presets">
+              <span class="preset-tag">
+                Lung Cancer
+                <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </span>
+              <span class="preset-tag">
+                Rheumatoid Arthritis
+                <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </span>
+            </div>
+            
+            <div class="inline-help">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+              <p>Select disease areas to auto-load relevant terms, or type custom words above. Terms improve recognition of drug names, medical acronyms, and clinical terms.</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Analysis Section -->
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </div>
+            <div>
+              <div class="section-title">Analysis</div>
+              <div class="section-subtitle">Extra processing on transcript</div>
+            </div>
+          </div>
+          <div class="section-content">
+            <div class="toggle-grid">
+              <div class="toggle-item active">
+                <span class="toggle-label">Summary</span>
+                <div class="toggle-switch"></div>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-label">Topics</span>
+                <div class="toggle-switch"></div>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-label">Sentiment</span>
+                <div class="toggle-switch"></div>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-label">Key phrases</span>
+                <div class="toggle-switch"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+  
+  <div class="notes">
+    <div class="notes-card">
+      <h3>Key Changes</h3>
+      <ul>
+        <li><strong>Disease Area dropdown</strong> replaces inline presets — scales to many categories without horizontal overflow</li>
+        <li><strong>Searchable menu</strong> with categories (Oncology, Immunology, Cardiology, etc.) for quick navigation</li>
+        <li><strong>Multi-select</strong> — users can load multiple disease vocabularies at once</li>
+        <li><strong>Selected presets as tags</strong> — clear visibility of what's active, easy to remove</li>
+        <li><strong>Term count preview</strong> — "142 terms" helps users understand what they're adding</li>
+        <li><strong>Conversation type kept</strong> — maps to AssemblyAI's <code>speaker_type</code> for smarter identification</li>
+        <li><strong>Speaker names added</strong> — optional field to replace A/B/C labels in output</li>
+        <li><strong>"Manage vocabularies" link</strong> — future path to settings where admins can add/edit term lists</li>
+      </ul>
+    </div>
+    
+    <div class="notes-card">
+      <h3>
+        Implementation Notes
+        <span class="badge">Technical</span>
+      </h3>
+      <p>The disease area vocabularies should be stored as JSON files that ship with the app or are fetched from a central config. Structure:</p>
+      <ul>
+        <li><code>vocabularies/oncology/lung-cancer.json</code> → array of boost words</li>
+        <li>When user selects a preset, merge its terms into the boost words input</li>
+        <li>AssemblyAI <code>word_boost</code> param accepts up to 1000 terms for Slam-1, 200 for Universal</li>
+        <li>Consider a "Manage Vocabularies" settings panel where admins can create/edit term lists</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

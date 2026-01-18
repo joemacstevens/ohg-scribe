@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OHG Scribe - Vocabulary Manager</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --magenta: #E91388;
+      --magenta-light: #F74BA5;
+      --purple: #6B2D7B;
+      --navy: #1A2B4A;
+      --navy-light: #2D4066;
+      --lavender-light: #F8F5FA;
+      --lavender: #F0EBF5;
+      --lavender-dark: #E8E0F0;
+      --gray-100: #F9FAFB;
+      --gray-200: #E5E7EB;
+      --gray-300: #D1D5DB;
+      --gray-400: #9CA3AF;
+      --gray-500: #6B7280;
+      --gray-600: #4B5563;
+      --white: #FFFFFF;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      padding: 40px;
+      min-height: 100vh;
+    }
+    
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 16px;
+      font-weight: 300;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      color: var(--gray-400);
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 14px;
+    }
+    
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .mockup-container {
+      background: #2a2a3e;
+      border-radius: 16px;
+      padding: 20px;
+    }
+    
+    .mockup-container.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .mockup-label {
+      color: var(--gray-400);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .badge {
+      background: var(--magenta);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    
+    /* Modal/Panel Base */
+    .panel {
+      background: var(--white);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .panel-header {
+      padding: 16px 20px;
+      background: var(--lavender-light);
+      border-bottom: 1px solid var(--lavender-dark);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .panel-title svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--purple);
+    }
+    
+    .panel-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--white);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    
+    .panel-close:hover {
+      background: var(--lavender);
+    }
+    
+    .panel-close svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--gray-500);
+    }
+    
+    .panel-body {
+      padding: 20px;
+    }
+    
+    .panel-footer {
+      padding: 16px 20px;
+      background: var(--gray-100);
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    /* Vocabulary List */
+    .vocab-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      width: 200px;
+    }
+    
+    .search-box svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--gray-400);
+    }
+    
+    .search-box input {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      color: var(--navy);
+      width: 100%;
+      outline: none;
+    }
+    
+    .search-box input::placeholder {
+      color: var(--gray-400);
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    
+    .btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--magenta) 0%, var(--purple) 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(233, 19, 136, 0.3);
+    }
+    
+    .btn-secondary {
+      background: var(--white);
+      color: var(--navy);
+      border: 1px solid var(--gray-200);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--gray-100);
+    }
+    
+    .btn-ghost {
+      background: transparent;
+      color: var(--gray-500);
+      padding: 6px 10px;
+    }
+    
+    .btn-ghost:hover {
+      background: var(--gray-100);
+      color: var(--navy);
+    }
+    
+    .btn-danger {
+      background: var(--white);
+      color: var(--error);
+      border: 1px solid var(--error);
+    }
+    
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+    
+    /* Category Accordion */
+    .category {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    
+    .category:last-child {
+      margin-bottom: 0;
+    }
+    
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--gray-100);
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .category-header:hover {
+      background: var(--lavender-light);
+    }
+    
+    .category-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .category-chevron {
+      width: 18px;
+      height: 18px;
+      stroke: var(--gray-400);
+      transition: transform 0.2s;
+    }
+    
+    .category.open .category-chevron {
+      transform: rotate(90deg);
+    }
+    
+    .category-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    
+    .category-count {
+      font-size: 12px;
+      color: var(--gray-400);
+      background: var(--white);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    
+    .category-actions {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .category-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    
+    .category-badge.system {
+      background: var(--lavender);
+      color: var(--purple);
+    }
+    
+    .category-badge.user {
+      background: rgba(233, 19, 136, 0.1);
+      color: var(--magenta);
+    }
+    
+    .category-items {
+      border-top: 1px solid var(--gray-200);
+    }
+    
+    .vocab-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px 12px 44px;
+      border-bottom: 1px solid var(--gray-100);
+      transition: background 0.15s;
+    }
+    
+    .vocab-item:last-child {
+      border-bottom: none;
+    }
+    
+    .vocab-item:hover {
+      background: var(--lavender-light);
+    }
+    
+    .vocab-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .vocab-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--lavender);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .vocab-icon svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--purple);
+    }
+    
+    .vocab-name {
+      font-size: 14px;
+      color: var(--navy);
+      font-weight: 500;
+    }
+    
+    .vocab-meta {
+      font-size: 12px;
+      color: var(--gray-400);
+      margin-top: 2px;
+    }
+    
+    .vocab-item-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    
+    .vocab-item:hover .vocab-item-actions {
+      opacity: 1;
+    }
+    
+    /* Editor View */
+    .editor-section {
+      margin-bottom: 20px;
+    }
+    
+    .editor-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .editor-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 8px;
+      display: block;
+    }
+    
+    .editor-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--navy);
+      transition: all 0.2s;
+    }
+    
+    .editor-input:focus {
+      outline: none;
+      border-color: var(--magenta);
+      box-shadow: 0 0 0 3px rgba(233, 19, 136, 0.1);
+    }
+    
+    .editor-select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--navy);
+      background: white;
+    }
+    
+    .editor-row {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .editor-row .editor-section {
+      flex: 1;
+    }
+    
+    /* Terms Editor */
+    .terms-editor {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    .terms-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--gray-100);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .terms-count {
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+    
+    .terms-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .terms-content {
+      padding: 14px;
+      min-height: 200px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .terms-textarea {
+      width: 100%;
+      min-height: 180px;
+      border: none;
+      resize: none;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--navy);
+      font-family: inherit;
+    }
+    
+    .terms-textarea:focus {
+      outline: none;
+    }
+    
+    .terms-textarea::placeholder {
+      color: var(--gray-400);
+    }
+    
+    /* Tags View */
+    .terms-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .term-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--lavender-light);
+      border: 1px solid var(--lavender-dark);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--navy);
+    }
+    
+    .term-tag .remove {
+      width: 14px;
+      height: 14px;
+      stroke: var(--gray-400);
+      cursor: pointer;
+    }
+    
+    .term-tag .remove:hover {
+      stroke: var(--error);
+    }
+    
+    .add-term-input {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--white);
+      border: 1px dashed var(--gray-300);
+      border-radius: 6px;
+    }
+    
+    .add-term-input input {
+      border: none;
+      font-size: 13px;
+      width: 100px;
+      color: var(--navy);
+      outline: none;
+    }
+    
+    .add-term-input input::placeholder {
+      color: var(--gray-400);
+    }
+    
+    /* Helper text */
+    .helper-text {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--lavender-light);
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    
+    .helper-text svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--purple);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    
+    .helper-text p {
+      font-size: 12px;
+      color: var(--gray-500);
+      line-height: 1.5;
+    }
+    
+    /* Import/Export Panel */
+    .import-export {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      background: var(--gray-100);
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+    
+    .import-export-option {
+      flex: 1;
+      padding: 16px;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .import-export-option svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--purple);
+      margin-bottom: 8px;
+    }
+    
+    .import-export-option h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    
+    .import-export-option p {
+      font-size: 12px;
+      color: var(--gray-400);
+      margin-bottom: 12px;
+    }
+    
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      stroke: var(--gray-300);
+      margin-bottom: 16px;
+    }
+    
+    .empty-state h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    
+    .empty-state p {
+      font-size: 13px;
+      color: var(--gray-400);
+      margin-bottom: 16px;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--gray-100);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--gray-500);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      color: var(--navy);
+    }
+    
+    .tab.active {
+      background: var(--white);
+      color: var(--navy);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    /* Notes */
+    .notes {
+      max-width: 1200px;
+      margin: 40px auto 0;
+      background: #2a2a3e;
+      border-radius: 16px;
+      padding: 24px;
+    }
+    
+    .notes h3 {
+      color: white;
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+    
+    .notes ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 24px;
+    }
+    
+    .notes li {
+      color: var(--gray-400);
+      font-size: 14px;
+      padding: 8px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    
+    .notes li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>OHG Scribe — Vocabulary Manager</h1>
+  <p class="subtitle">Allow users to create, edit, and organize vocabulary presets</p>
+  
+  <div class="mockup-grid">
+    
+    <!-- Vocabulary List View -->
+    <div class="mockup-container">
+      <div class="mockup-label">
+        <span class="badge">Screen 1</span>
+        Vocabulary List
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            Vocabulary Manager
+          </div>
+          <button class="panel-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="vocab-list-header">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" placeholder="Search vocabularies...">
+            </div>
+            <button class="btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              New Vocabulary
+            </button>
+          </div>
+          
+          <!-- System Presets -->
+          <div class="category open">
+            <div class="category-header">
+              <div class="category-left">
+                <svg class="category-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+                <span class="category-name">Oncology</span>
+                <span class="category-count">4 vocabularies</span>
+              </div>
+              <div class="category-actions">
+                <span class="category-badge system">System</span>
+              </div>
+            </div>
+            <div class="category-items">
+              <div class="vocab-item">
+                <div class="vocab-item-left">
+                  <div class="vocab-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="vocab-name">Lung Cancer</div>
+                    <div class="vocab-meta">142 terms • System preset</div>
+                  </div>
+                </div>
+                <div class="vocab-item-actions">
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="vocab-item">
+                <div class="vocab-item-left">
+                  <div class="vocab-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="vocab-name">Breast Cancer</div>
+                    <div class="vocab-meta">128 terms • System preset</div>
+                  </div>
+                </div>
+                <div class="vocab-item-actions">
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- User Created -->
+          <div class="category open">
+            <div class="category-header">
+              <div class="category-left">
+                <svg class="category-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+                <span class="category-name">My Vocabularies</span>
+                <span class="category-count">2 vocabularies</span>
+              </div>
+              <div class="category-actions">
+                <span class="category-badge user">Custom</span>
+                <button class="btn btn-ghost" style="padding: 4px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:16px;height:16px;">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="category-items">
+              <div class="vocab-item">
+                <div class="vocab-item-left">
+                  <div class="vocab-icon" style="background: rgba(233, 19, 136, 0.1);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="stroke: var(--magenta);">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="vocab-name">COPERNICUS Study Terms</div>
+                    <div class="vocab-meta">47 terms • Last edited 2 days ago</div>
+                  </div>
+                </div>
+                <div class="vocab-item-actions">
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;stroke:var(--error);">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="vocab-item">
+                <div class="vocab-item-left">
+                  <div class="vocab-icon" style="background: rgba(233, 19, 136, 0.1);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="stroke: var(--magenta);">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="vocab-name">Client ABC Brands</div>
+                    <div class="vocab-meta">23 terms • Last edited 1 week ago</div>
+                  </div>
+                </div>
+                <div class="vocab-item-actions">
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;stroke:var(--error);">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Import/Export -->
+          <div class="import-export">
+            <div class="import-export-option">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <h4>Import</h4>
+              <p>Load from CSV or JSON file</p>
+              <button class="btn btn-secondary">Choose File</button>
+            </div>
+            <div class="import-export-option">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <h4>Export All</h4>
+              <p>Download as JSON backup</p>
+              <button class="btn btn-secondary">Export</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Create/Edit Vocabulary -->
+    <div class="mockup-container">
+      <div class="mockup-label">
+        <span class="badge">Screen 2</span>
+        Create / Edit Vocabulary
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New Vocabulary
+          </div>
+          <button class="panel-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="editor-row">
+            <div class="editor-section">
+              <label class="editor-label">Vocabulary Name</label>
+              <input type="text" class="editor-input" placeholder="e.g., Atrial Fibrillation">
+            </div>
+            <div class="editor-section" style="flex: 0 0 160px;">
+              <label class="editor-label">Category</label>
+              <select class="editor-select">
+                <option>My Vocabularies</option>
+                <option>Oncology</option>
+                <option>Immunology</option>
+                <option>Cardiology</option>
+                <option>+ New Category</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="editor-section">
+            <label class="editor-label">Terms</label>
+            <div class="tabs">
+              <button class="tab active">Tag View</button>
+              <button class="tab">Text View</button>
+            </div>
+            <div class="terms-editor">
+              <div class="terms-header">
+                <span class="terms-count">12 terms</span>
+                <div class="terms-actions">
+                  <button class="btn btn-ghost" style="font-size: 12px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Paste list
+                  </button>
+                  <button class="btn btn-ghost" style="font-size: 12px; color: var(--error);">
+                    Clear all
+                  </button>
+                </div>
+              </div>
+              <div class="terms-content">
+                <div class="terms-tags">
+                  <span class="term-tag">
+                    AFib
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    anticoagulant
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    warfarin
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    apixaban
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    rivaroxaban
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    NOAC
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    ablation
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    cardioversion
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    CHA2DS2-VASc
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    HAS-BLED
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    rate control
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <span class="term-tag">
+                    rhythm control
+                    <svg class="remove" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </span>
+                  <div class="add-term-input">
+                    <input type="text" placeholder="Add term...">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:14px;height:14px;stroke:var(--gray-400);">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="helper-text">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+              <p>Add drug names, medical acronyms, clinical terms, and brand names. Each term can be up to 6 words. Use "Paste list" to add many terms at once (one per line or comma-separated).</p>
+            </div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <button class="btn btn-secondary">Cancel</button>
+          <button class="btn btn-primary">Save Vocabulary</button>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="notes">
+    <h3>Features</h3>
+    <ul>
+      <li><strong>Two vocabulary types:</strong> System presets (read-only, can duplicate) and User created (full edit)</li>
+      <li><strong>Categories:</strong> Organize by therapeutic area or custom groupings</li>
+      <li><strong>Search:</strong> Quick filter across all vocabularies</li>
+      <li><strong>Term count:</strong> Shows how many words in each vocabulary</li>
+      <li><strong>Tag view:</strong> Visual editing with individual remove buttons</li>
+      <li><strong>Text view:</strong> Bulk editing — paste a list, one term per line</li>
+      <li><strong>Paste list:</strong> Quick import from clipboard (comma or newline separated)</li>
+      <li><strong>Import/Export:</strong> JSON or CSV for backup and sharing between users</li>
+      <li><strong>Duplicate system presets:</strong> Copy a built-in vocabulary to customize it</li>
+      <li><strong>Last edited timestamp:</strong> Track when custom vocabularies were modified</li>
+      <li><strong>Access from:</strong> Settings gear icon or "Manage vocabularies" link in options panel</li>
+      <li><strong>Storage:</strong> Save to app's local data directory (persists across sessions)</li>
+    </ul>
+  </div>
+</body>
+</html>
