@@ -19,6 +19,19 @@ A professional desktop application for transcribing audio and video files into p
 
 ---
 
+## Supported Formats
+
+**Both audio and video files are supported** — FFmpeg converts everything to optimized MP3 for transcription.
+
+| Type | Extensions |
+|------|------------|
+| **Video** | `.mp4`, `.mov`, `.avi`, `.mkv`, `.webm` |
+| **Audio** | `.mp3`, `.wav`, `.m4a`, `.aac`, `.ogg`, `.flac` |
+
+> **Note:** Audio files work exactly the same as video files. FFmpeg extracts and converts the audio to mono 16kHz 32kbps MP3, optimized for transcription accuracy and small file size.
+
+---
+
 ## Architecture
 
 ```
