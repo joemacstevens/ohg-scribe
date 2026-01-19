@@ -663,7 +663,10 @@
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 24px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 50;
     }
 
     .play-btn {
