@@ -159,6 +159,30 @@
     background: var(--lavender, #f0ebf5);
     border-radius: 2px;
     overflow: hidden;
+    position: relative;
+  }
+
+  /* Shimmer effect while processing */
+  .progress-container::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    );
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    to {
+      left: 100%;
+    }
   }
 
   .progress-bar {
@@ -169,7 +193,7 @@
       var(--purple, #6b2d7b) 100%
     );
     border-radius: 2px;
-    transition: width 0.3s ease;
+    transition: width var(--duration-normal, 250ms) var(--ease-out, ease-out);
   }
 
   .progress-text {
@@ -191,7 +215,10 @@
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition:
+      transform var(--duration-instant, 100ms) var(--ease-out, ease-out),
+      box-shadow var(--duration-instant, 100ms) var(--ease-out, ease-out),
+      background-color var(--duration-instant, 100ms) var(--ease-out, ease-out);
   }
 
   .open-btn svg,

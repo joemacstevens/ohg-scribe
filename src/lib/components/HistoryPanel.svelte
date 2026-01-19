@@ -1,5 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { fly, fade } from "svelte/transition";
+    import { cubicOut } from "svelte/easing";
     import { goto } from "$app/navigation";
     import {
         getHistoryList,
@@ -125,7 +127,7 @@
                     </div>
                 {:else}
                     <div class="history-list">
-                        {#each historyList as item (item.id)}
+                        {#each historyList as item, i (item.id)}
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <div
@@ -133,6 +135,13 @@
                                 onclick={() => openTranscript(item.id)}
                                 role="button"
                                 tabindex="0"
+                                in:fly={{
+                                    x: -10,
+                                    duration: 200,
+                                    delay: Math.min(i, 5) * 40,
+                                    easing: cubicOut,
+                                }}
+                                out:fade={{ duration: 150 }}
                             >
                                 <div class="item-content">
                                     <div class="item-title">
@@ -281,16 +290,22 @@
         padding: 16px;
         text-align: left;
         cursor: pointer;
-        transition: all 0.2s;
         width: 100%;
         display: flex;
         align-items: flex-start;
         gap: 12px;
+        transition:
+            background-color var(--duration-instant, 100ms)
+                var(--ease-out, ease-out),
+            border-color var(--duration-instant, 100ms)
+                var(--ease-out, ease-out),
+            transform var(--duration-instant, 100ms) var(--ease-out, ease-out);
     }
 
     .history-item:hover {
         background: var(--lavender, #f0ebf5);
         border-color: var(--magenta, #e91388);
+        transform: translateX(2px);
     }
 
     .item-content {

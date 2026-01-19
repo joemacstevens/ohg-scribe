@@ -135,8 +135,11 @@
     padding: 48px 24px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s ease;
     background: var(--white, #ffffff);
+    transition:
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      transform var(--duration-fast, 150ms) var(--ease-out, ease-out);
   }
 
   .drop-zone:hover:not(.disabled) {
@@ -156,6 +159,7 @@
       rgba(233, 19, 136, 0.05) 0%,
       var(--white) 100%
     );
+    transform: scale(1.01);
   }
 
   .drop-zone.disabled {

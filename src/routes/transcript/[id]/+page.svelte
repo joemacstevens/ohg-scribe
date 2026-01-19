@@ -617,11 +617,28 @@
 
     .segment {
         padding: 16px 0;
+        padding-left: 12px;
+        margin-left: -12px;
         border-bottom: 1px solid var(--lavender-dark, #e8e0f0);
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+            background-color var(--duration-fast, 150ms)
+                var(--ease-out, ease-out),
+            transform var(--duration-fast, 150ms) var(--ease-out, ease-out);
     }
 
     .segment:last-child {
         border-bottom: none;
+    }
+
+    .segment:hover {
+        background-color: var(--lavender-light, #f8f5fa);
+    }
+
+    .segment.playing {
+        background-color: rgba(233, 19, 136, 0.05);
+        transform: translateX(4px);
     }
 
     .segment-header {

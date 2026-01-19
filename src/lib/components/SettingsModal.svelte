@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { fade, scale } from "svelte/transition";
+  import { backOut, cubicIn } from "svelte/easing";
+
   interface Props {
     isOpen: boolean;
     onClose: () => void;
@@ -53,10 +56,17 @@
     tabindex="-1"
     aria-modal="true"
     aria-labelledby="settings-title"
+    transition:fade={{ duration: 200 }}
   >
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="document">
+    <div
+      class="modal"
+      onclick={(e) => e.stopPropagation()}
+      role="document"
+      in:scale={{ duration: 250, start: 0.95, easing: backOut }}
+      out:scale={{ duration: 150, start: 0.98, easing: cubicIn }}
+    >
       <div class="modal-header">
         <h2 id="settings-title">Settings</h2>
         <button class="close-btn" onclick={onClose} aria-label="Close">×</button
