@@ -1,6 +1,13 @@
 <script lang="ts">
   import { fade, scale } from "svelte/transition";
   import { backOut, cubicIn } from "svelte/easing";
+  import { onMount } from "svelte";
+  import {
+    checkForUpdate,
+    downloadAndInstall,
+    getCurrentVersion,
+    type UpdateInfo,
+  } from "$lib/services/updater";
 
   interface Props {
     isOpen: boolean;
@@ -23,6 +30,18 @@
   let showKey = $state(false);
   let showOpenAIKey = $state(false);
 
+  // Update checker state
+  let currentVersion = $state("");
+  let updateAvailable = $state<UpdateInfo | null>(null);
+  let checkingUpdate = $state(false);
+  let downloading = $state(false);
+  let downloadProgress = $state(0);
+  let updateError = $state<string | null>(null);
+
+  onMount(async () => {
+    currentVersion = await getCurrentVersion();
+  });
+
   $effect(() => {
     if (isOpen) {
       assemblyaiKey = currentAssemblyAIKey;
@@ -42,6 +61,39 @@
       onClose();
     } else if (e.key === "Enter") {
       handleSave();
+    }
+  }
+
+  async function handleCheckUpdate() {
+    checkingUpdate = true;
+    updateError = null;
+    updateAvailable = null;
+
+    try {
+      const result = await checkForUpdate();
+      if (result.available && result.update) {
+        updateAvailable = result.update;
+      } else {
+        updateError = "You're on the latest version!";
+      }
+    } catch (e) {
+      updateError = `Failed to check: ${e instanceof Error ? e.message : String(e)}`;
+    } finally {
+      checkingUpdate = false;
+    }
+  }
+
+  async function handleDownloadUpdate() {
+    downloading = true;
+    downloadProgress = 0;
+
+    try {
+      await downloadAndInstall((current, total) => {
+        downloadProgress = Math.round((current / total) * 100);
+      });
+    } catch (e) {
+      updateError = `Update failed: ${e instanceof Error ? e.message : String(e)}`;
+      downloading = false;
     }
   }
 </script>
@@ -128,6 +180,58 @@
               rel="noopener">platform.openai.com</a
             >
           </p>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="form-group">
+          <label>App Updates</label>
+          <div class="version-info">
+            <span>Current version: <strong>v{currentVersion}</strong></span>
+          </div>
+
+          {#if updateAvailable}
+            <div class="update-available">
+              <p>
+                🎉 New version <strong>v{updateAvailable.version}</strong> is available!
+              </p>
+              {#if updateAvailable.body}
+                <p class="update-notes">{updateAvailable.body}</p>
+              {/if}
+              {#if downloading}
+                <div class="download-progress">
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill"
+                      style="width: {downloadProgress}%"
+                    ></div>
+                  </div>
+                  <span>{downloadProgress}%</span>
+                </div>
+              {:else}
+                <button class="btn-update" onclick={handleDownloadUpdate}>
+                  Download & Install
+                </button>
+              {/if}
+            </div>
+          {:else}
+            <button
+              class="btn-check-update"
+              onclick={handleCheckUpdate}
+              disabled={checkingUpdate}
+            >
+              {checkingUpdate ? "Checking..." : "Check for Updates"}
+            </button>
+          {/if}
+
+          {#if updateError}
+            <p
+              class="update-message"
+              class:success={updateError.includes("latest")}
+            >
+              {updateError}
+            </p>
+          {/if}
         </div>
       </div>
 
@@ -316,5 +420,113 @@
   .btn-save:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--lavender-dark, #e8e0f0);
+    margin: 20px 0;
+  }
+
+  .version-info {
+    font-size: 14px;
+    color: var(--gray-600, #4b5563);
+    margin-bottom: 12px;
+  }
+
+  .version-info strong {
+    color: var(--navy, #1a2b4a);
+  }
+
+  .btn-check-update {
+    padding: 10px 16px;
+    background: var(--lavender-light, #f8f5fa);
+    border: 1px solid var(--lavender-dark, #e8e0f0);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--navy, #1a2b4a);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-check-update:hover:not(:disabled) {
+    background: var(--lavender, #f0ebf5);
+    border-color: var(--magenta, #e91388);
+  }
+
+  .btn-check-update:disabled {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .update-available {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+
+  .update-available p {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: var(--navy, #1a2b4a);
+  }
+
+  .update-notes {
+    font-size: 12px;
+    color: var(--gray-600, #4b5563);
+    background: rgba(0, 0, 0, 0.03);
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 12px !important;
+  }
+
+  .btn-update {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-update:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+
+  .download-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .download-progress .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--lavender, #f0ebf5);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .download-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #059669);
+    transition: width 0.2s;
+  }
+
+  .update-message {
+    font-size: 13px;
+    margin: 8px 0 0;
+    color: var(--error-color, #ef4444);
+  }
+
+  .update-message.success {
+    color: #10b981;
   }
 </style>
