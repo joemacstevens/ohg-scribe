@@ -23,6 +23,13 @@
     let identifying = $state(false);
     let speakerMapping = $state<Record<string, string>>({});
 
+    // Audio player state
+    let audioElement: HTMLAudioElement | null = $state(null);
+    let isPlaying = $state(false);
+    let currentTime = $state(0);
+    let duration = $state(0);
+    let currentSegmentIndex = $state(-1);
+
     const id = $derived($page.params.id);
 
     onMount(async () => {
@@ -197,6 +204,69 @@
             .replace(/\s+/g, " ") // Normalize spaces
             .trim();
     }
+
+    // Audio player functions
+    function handleTimeUpdate() {
+        if (audioElement) {
+            currentTime = audioElement.currentTime * 1000; // Convert to ms
+            updateCurrentSegment();
+        }
+    }
+
+    function handleLoadedMetadata() {
+        if (audioElement) {
+            duration = audioElement.duration * 1000; // Convert to ms
+        }
+    }
+
+    function updateCurrentSegment() {
+        if (!entry) return;
+
+        // Find segment that contains current time
+        const index = entry.transcript.segments.findIndex((seg, i, arr) => {
+            const nextStart = arr[i + 1]?.start ?? Infinity;
+            return currentTime >= seg.start && currentTime < nextStart;
+        });
+
+        if (index !== currentSegmentIndex) {
+            currentSegmentIndex = index;
+
+            // Auto-scroll to current segment
+            if (index >= 0) {
+                const el = document.getElementById(`segment-${index}`);
+                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }
+    }
+
+    function seekToSegment(segmentIndex: number) {
+        if (!entry || !audioElement) return;
+
+        const segment = entry.transcript.segments[segmentIndex];
+        if (segment) {
+            audioElement.currentTime = segment.start / 1000; // Convert ms to seconds
+            audioElement.play();
+            isPlaying = true;
+        }
+    }
+
+    function togglePlayPause() {
+        if (!audioElement) return;
+
+        if (isPlaying) {
+            audioElement.pause();
+        } else {
+            audioElement.play();
+        }
+        isPlaying = !isPlaying;
+    }
+
+    function formatPlayTime(ms: number): string {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    }
 </script>
 
 <svelte:head>
@@ -272,9 +342,56 @@
                 </div>
             </div>
 
+            <!-- Audio Player -->
+            {#if entry.audioPath}
+                <div class="audio-player">
+                    <audio
+                        bind:this={audioElement}
+                        src={`file://${entry.audioPath}`}
+                        ontimeupdate={handleTimeUpdate}
+                        onloadedmetadata={handleLoadedMetadata}
+                        onplay={() => (isPlaying = true)}
+                        onpause={() => (isPlaying = false)}
+                        onended={() => {
+                            isPlaying = false;
+                            currentSegmentIndex = -1;
+                        }}
+                    />
+                    <button class="play-btn" onclick={togglePlayPause}>
+                        {isPlaying ? "⏸️" : "▶️"}
+                    </button>
+                    <div class="time-display">
+                        {formatPlayTime(currentTime)} / {formatPlayTime(
+                            duration,
+                        )}
+                    </div>
+                    <input
+                        type="range"
+                        class="progress-slider"
+                        min="0"
+                        max={duration}
+                        value={currentTime}
+                        oninput={(e) => {
+                            if (audioElement) {
+                                audioElement.currentTime =
+                                    Number(e.currentTarget.value) / 1000;
+                            }
+                        }}
+                    />
+                </div>
+            {/if}
+
             <div class="transcript-body">
                 {#each entry.transcript.segments as segment, i}
-                    <div class="segment" class:even={i % 2 === 1}>
+                    <div
+                        id={`segment-${i}`}
+                        class="segment"
+                        class:even={i % 2 === 1}
+                        class:playing={i === currentSegmentIndex}
+                        onclick={() => seekToSegment(i)}
+                        role="button"
+                        tabindex="0"
+                    >
                         <div class="segment-header">
                             <span class="speaker">{segment.speaker}</span>
                             <span class="timestamp"
@@ -529,5 +646,94 @@
         font-size: 15px;
         line-height: 1.7;
         color: var(--navy, #1a2b4a);
+    }
+
+    /* Audio player */
+    .audio-player {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--white, #ffffff);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .play-btn {
+        background: linear-gradient(
+            135deg,
+            var(--magenta, #e91388) 0%,
+            var(--purple, #6b2d7b) 100%
+        );
+        border: none;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .play-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(233, 19, 136, 0.3);
+    }
+
+    .time-display {
+        font-size: 13px;
+        color: var(--gray-600, #4b5563);
+        font-variant-numeric: tabular-nums;
+        min-width: 85px;
+    }
+
+    .progress-slider {
+        flex: 1;
+        height: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--lavender-dark, #e8e0f0);
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    .progress-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--magenta, #e91388);
+        cursor: pointer;
+    }
+
+    /* Clickable and playing segments */
+    .segment {
+        padding: 16px;
+        border-bottom: 1px solid var(--lavender-dark, #e8e0f0);
+        cursor: pointer;
+        border-radius: 8px;
+        margin: 0 -16px;
+        transition:
+            background 0.2s,
+            border-color 0.2s;
+    }
+
+    .segment:hover {
+        background: var(--lavender-light, #f8f5fa);
+    }
+
+    .segment.playing {
+        background: linear-gradient(
+            90deg,
+            rgba(233, 19, 136, 0.08) 0%,
+            rgba(107, 45, 123, 0.08) 100%
+        );
+        border-left: 3px solid var(--magenta, #e91388);
+        padding-left: 13px;
     }
 </style>

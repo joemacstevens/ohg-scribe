@@ -13,6 +13,7 @@ export interface HistoryEntry {
     speakerCount: number;
     wordCount: number;
     transcript: TranscriptResult;
+    audioPath?: string; // Path to stored audio file for playback
     options: {
         speakerNames: string[];
         includedSummary: boolean;
@@ -72,7 +73,8 @@ export function createHistoryEntry(
     filename: string,
     originalPath: string,
     transcript: TranscriptResult,
-    options: HistoryEntry['options']
+    options: HistoryEntry['options'],
+    audioPath?: string
 ): HistoryEntry {
     // Count words
     const wordCount = transcript.segments.reduce((count, segment) => {
@@ -90,6 +92,7 @@ export function createHistoryEntry(
         speakerCount: speakers.size,
         wordCount,
         transcript,
+        audioPath,
         options
     };
 }

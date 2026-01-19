@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
+  import { invoke } from "@tauri-apps/api/core";
   import DropZone from "$lib/components/DropZone.svelte";
   import FileQueue from "$lib/components/FileQueue.svelte";
   import OptionsPanel from "$lib/components/OptionsPanel.svelte";
@@ -219,6 +220,19 @@
             includedSentiment: options.analyzeSentiment,
           },
         );
+
+        // Store audio file for playback in transcript view
+        try {
+          const storedAudioPath = await invoke<string>("store_audio_file", {
+            sourcePath: audioPath,
+            historyId: historyEntry.id,
+          });
+          historyEntry.audioPath = storedAudioPath;
+          console.log("Audio stored at:", storedAudioPath);
+        } catch (audioError) {
+          console.warn("Failed to store audio for playback:", audioError);
+        }
+
         await saveToHistory(historyEntry);
         console.log("Saved to history:", historyEntry.id);
 

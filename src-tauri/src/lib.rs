@@ -1,5 +1,6 @@
 mod commands;
 
+use commands::audio::{store_audio_file, delete_audio_file};
 use commands::convert::{cleanup_temp_dir, convert_to_audio};
 use commands::history::{save_history_entry, get_history_list, get_history_entry, delete_history_entry};
 use commands::lemur::identify_speakers;
@@ -30,6 +31,9 @@ pub fn run() {
             // FFmpeg conversion
             convert_to_audio,
             cleanup_temp_dir,
+            // Audio storage
+            store_audio_file,
+            delete_audio_file,
             // Settings
             get_api_key,
             set_api_key,
@@ -67,4 +71,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
