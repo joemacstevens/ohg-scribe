@@ -2,6 +2,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { open } from "@tauri-apps/plugin-dialog";
     import { vocabularyStore } from "$lib/stores/vocabulary";
+    import { extractFilename } from "$lib/types";
 
     interface Props {
         isOpen: boolean;
@@ -43,10 +44,7 @@
         });
 
         if (selected && typeof selected === "string") {
-            const name =
-                selected.split("/").pop() ||
-                selected.split("\\").pop() ||
-                "document";
+            const name = extractFilename(selected);
             selectedFile = { path: selected, name };
         }
     }

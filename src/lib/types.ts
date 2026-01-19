@@ -67,3 +67,14 @@ export const ACCEPTED_EXTENSIONS = [
 
 export const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
 export const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'];
+
+/**
+ * Extract just the filename from a full path (cross-platform).
+ * Handles both Unix paths (/) and Windows paths (\) including UNC paths (\\server\share).
+ */
+export function extractFilename(path: string): string {
+  // Replace all backslashes with forward slashes, then split on forward slash
+  const normalized = path.replace(/\\/g, '/');
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || 'unknown';
+}

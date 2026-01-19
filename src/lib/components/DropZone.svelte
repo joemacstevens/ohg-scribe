@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { ACCEPTED_EXTENSIONS } from "../types";
+  import { ACCEPTED_EXTENSIONS, extractFilename } from "../types";
 
   interface Props {
     onFilesDropped: (files: { filename: string; filepath: string }[]) => void;
@@ -29,8 +29,7 @@
             return ACCEPTED_EXTENSIONS.includes(ext);
           })
           .map((path) => ({
-            filename:
-              path.split("/").pop() || path.split("\\").pop() || "unknown",
+            filename: extractFilename(path),
             filepath: path,
           }));
 
@@ -82,8 +81,7 @@
       if (selected) {
         const paths = Array.isArray(selected) ? selected : [selected];
         const files = paths.map((path) => ({
-          filename:
-            path.split("/").pop() || path.split("\\").pop() || "unknown",
+          filename: extractFilename(path),
           filepath: path,
         }));
         onFilesDropped(files);
