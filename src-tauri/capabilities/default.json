@@ -50,6 +50,9 @@
           "path": "$DOWNLOAD/**"
         },
         {
+          "path": "$APPDATA/**"
+        },
+        {
           "path": "/**"
         }
       ]
@@ -113,6 +116,13 @@
           "path": "/**"
         }
       ]
+    },
+    {
+      "identifier": "core:app:allow-app-show",
+      "allow": []
+    },
+    {
+      "identifier": "core:path:default"
     }
   ]
 }

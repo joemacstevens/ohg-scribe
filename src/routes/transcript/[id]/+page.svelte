@@ -3,6 +3,7 @@
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
     import { invoke } from "@tauri-apps/api/core";
+    import { convertFileSrc } from "@tauri-apps/api/core";
     import {
         getHistoryEntry,
         deleteHistoryEntry,
@@ -29,6 +30,11 @@
     let currentTime = $state(0);
     let duration = $state(0);
     let currentSegmentIndex = $state(-1);
+
+    // Convert audio path to asset URL for Tauri WebView
+    const audioSrc = $derived(
+        entry?.audioPath ? convertFileSrc(entry.audioPath) : null,
+    );
 
     const id = $derived($page.params.id);
 
@@ -343,11 +349,11 @@
             </div>
 
             <!-- Audio Player -->
-            {#if entry.audioPath}
+            {#if audioSrc}
                 <div class="audio-player">
                     <audio
                         bind:this={audioElement}
-                        src={`file://${entry.audioPath}`}
+                        src={audioSrc}
                         ontimeupdate={handleTimeUpdate}
                         onloadedmetadata={handleLoadedMetadata}
                         onplay={() => (isPlaying = true)}
