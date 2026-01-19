@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
   import DropZone from "$lib/components/DropZone.svelte";
   import FileQueue from "$lib/components/FileQueue.svelte";
   import OptionsPanel from "$lib/components/OptionsPanel.svelte";
@@ -220,6 +221,9 @@
         );
         await saveToHistory(historyEntry);
         console.log("Saved to history:", historyEntry.id);
+
+        // Store historyId in job so View button can navigate
+        queueStore.updateJob(jobId, { historyId: historyEntry.id });
       } catch (historyError) {
         console.warn("Failed to save to history:", historyError);
       }
@@ -310,8 +314,11 @@
   }
 
   function handleViewTranscript(job: FileJob) {
-    // TODO: Implement in-app transcript viewer
-    showToast("Transcript viewer coming soon!", "info");
+    if (job.historyId) {
+      goto(`/transcript/${job.historyId}`);
+    } else {
+      showToast("Transcript not available", "error");
+    }
   }
 
   let hasJobs = $derived(jobs.length > 0);

@@ -43,6 +43,7 @@ export interface FileJob {
   progress: number;
   error?: string;
   outputPath?: string;
+  historyId?: string;  // ID of the saved history entry for navigating to transcript view
 }
 
 export interface TranscriptSegment {
