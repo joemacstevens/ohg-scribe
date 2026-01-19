@@ -117,10 +117,21 @@
     function goBack() {
         goto("/");
     }
+
+    // Clean up filename for display title
+    function cleanTitle(filename: string): string {
+        return filename
+            .replace(/\.[^/.]+$/, "") // Remove extension
+            .replace(/_/g, " ") // Underscores to spaces
+            .replace(/\s+/g, " ") // Normalize spaces
+            .trim();
+    }
 </script>
 
 <svelte:head>
-    <title>{entry?.filename || "Transcript"} | OHG Scribe</title>
+    <title
+        >{entry ? cleanTitle(entry.filename) : "Transcript"} | OHG Scribe</title
+    >
 </svelte:head>
 
 <main class="transcript-page">
@@ -168,7 +179,7 @@
             </div>
         {:else if entry}
             <div class="transcript-header">
-                <h1>{entry.filename}</h1>
+                <h1>{cleanTitle(entry.filename)}</h1>
                 <div class="meta-row">
                     <span class="meta-item"
                         >📅 {formatDate(entry.transcribedAt)}</span
