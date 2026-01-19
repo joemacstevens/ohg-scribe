@@ -121,6 +121,31 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
+      - name: Rename macOS updater bundles with architecture suffix
+        run: |
+          # Rename ARM64 files
+          if [ -d "artifacts/OHG-Scribe-macOS-ARM64" ]; then
+            for f in artifacts/OHG-Scribe-macOS-ARM64/*.app.tar.gz; do
+              [ -f "$f" ] && mv "$f" "${f%.app.tar.gz}_aarch64.app.tar.gz"
+            done
+            for f in artifacts/OHG-Scribe-macOS-ARM64/*.app.tar.gz.sig; do
+              [ -f "$f" ] && mv "$f" "${f%.app.tar.gz.sig}_aarch64.app.tar.gz.sig"
+            done
+          fi
+          
+          # Rename Intel files
+          if [ -d "artifacts/OHG-Scribe-macOS-Intel" ]; then
+            for f in artifacts/OHG-Scribe-macOS-Intel/*.app.tar.gz; do
+              [ -f "$f" ] && mv "$f" "${f%.app.tar.gz}_x64.app.tar.gz"
+            done
+            for f in artifacts/OHG-Scribe-macOS-Intel/*.app.tar.gz.sig; do
+              [ -f "$f" ] && mv "$f" "${f%.app.tar.gz.sig}_x64.app.tar.gz.sig"
+            done
+          fi
+          
+          echo "Renamed files:"
+          ls -la artifacts/OHG-Scribe-macOS-*/ 2>/dev/null || echo "No macOS artifacts found"
+
       - name: Generate latest.json manifest
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
