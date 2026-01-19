@@ -101,6 +101,19 @@
                 />
             </div>
         </div>
+
+        <div class="inline-help">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+            </svg>
+            <p>
+                Setting the exact speaker count improves identification
+                accuracy. Add names in speaking order to label speakers in the
+                transcript.
+            </p>
+        </div>
     </div>
 </div>
 
@@ -195,5 +208,30 @@
 
     .new-input::placeholder {
         color: var(--gray-400, #9ca3af);
+    }
+
+    .inline-help {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+        background: var(--lavender-light, #f8f5fa);
+        border-radius: 8px;
+        margin-top: 12px;
+    }
+
+    .inline-help svg {
+        width: 14px;
+        height: 14px;
+        stroke: var(--purple, #6b2d7b);
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .inline-help p {
+        font-size: 11px;
+        color: var(--gray-500, #6b7280);
+        line-height: 1.4;
+        margin: 0;
     }
 </style>
