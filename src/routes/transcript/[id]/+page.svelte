@@ -2,11 +2,14 @@
     import { onMount } from "svelte";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
+    import { invoke } from "@tauri-apps/api/core";
     import {
         getHistoryEntry,
         deleteHistoryEntry,
+        updateHistoryEntry,
         type HistoryEntry,
     } from "$lib/services/history";
+    import { getApiKey } from "$lib/services/transcription";
     import {
         generateWordDocument,
         saveDocument,
@@ -17,6 +20,8 @@
     let loading = $state(true);
     let error = $state<string | null>(null);
     let exporting = $state(false);
+    let identifying = $state(false);
+    let speakerMapping = $state<Record<string, string>>({});
 
     const id = $derived($page.params.id);
 
@@ -96,6 +101,72 @@
         }
     }
 
+    async function identifySpeakers() {
+        if (!entry) return;
+
+        identifying = true;
+        error = null;
+
+        try {
+            // Get API key
+            const apiKey = await getApiKey();
+            if (!apiKey) {
+                error =
+                    "AssemblyAI API key not configured. Please add it in Settings.";
+                identifying = false;
+                return;
+            }
+
+            // Build transcript text with speaker labels
+            const transcriptText = entry.transcript.segments
+                .map((s) => `Speaker ${s.speaker}:\n${s.text}`)
+                .join("\n\n");
+
+            // Get unique speaker labels
+            const uniqueSpeakers = [
+                ...new Set(entry.transcript.segments.map((s) => s.speaker)),
+            ];
+
+            // Call LeMUR to identify speakers
+            const mapping = await invoke<Record<string, string>>(
+                "identify_speakers",
+                {
+                    transcriptText,
+                    speakerLabels: uniqueSpeakers,
+                    apiKey,
+                },
+            );
+
+            speakerMapping = mapping;
+
+            // Apply mapping to transcript segments
+            if (Object.keys(mapping).length > 0) {
+                const updatedSegments = entry.transcript.segments.map(
+                    (segment) => ({
+                        ...segment,
+                        speaker: mapping[segment.speaker] || segment.speaker,
+                    }),
+                );
+
+                entry = {
+                    ...entry,
+                    transcript: {
+                        ...entry.transcript,
+                        segments: updatedSegments,
+                    },
+                };
+
+                // Save updated entry to history
+                await updateHistoryEntry(entry);
+            }
+        } catch (e) {
+            error = `Failed to identify speakers: ${e instanceof Error ? e.message : String(e)}`;
+            console.error(error);
+        } finally {
+            identifying = false;
+        }
+    }
+
     function formatDate(isoString: string): string {
         const date = new Date(isoString);
         return date.toLocaleDateString("en-US", {
@@ -152,6 +223,14 @@
 
         {#if entry}
             <div class="header-actions">
+                <button
+                    class="identify-btn"
+                    onclick={identifySpeakers}
+                    disabled={identifying}
+                    title="Use AI to identify speaker names from transcript"
+                >
+                    {identifying ? "Identifying..." : "🪄 Identify Speakers"}
+                </button>
                 <button
                     class="export-btn"
                     onclick={exportToWord}
@@ -263,6 +342,29 @@
     .header-actions {
         display: flex;
         gap: 12px;
+    }
+
+    .identify-btn {
+        background: var(--white, #ffffff);
+        color: var(--purple, #6b2d7b);
+        border: 1px solid var(--purple, #6b2d7b);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .identify-btn:hover:not(:disabled) {
+        background: var(--lavender-light, #f8f5fa);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(107, 45, 123, 0.2);
+    }
+
+    .identify-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 
     .export-btn {

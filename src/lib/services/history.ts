@@ -56,6 +56,12 @@ export async function deleteHistoryEntry(id: string): Promise<void> {
     await invoke('delete_history_entry', { id });
 }
 
+// Update an existing history entry (e.g., after identifying speakers)
+export async function updateHistoryEntry(entry: HistoryEntry): Promise<void> {
+    console.log('Updating history entry:', entry.id);
+    await invoke('save_history_entry', { entry: JSON.stringify(entry) });
+}
+
 // Generate a unique ID for new entries
 export function generateHistoryId(): string {
     return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
