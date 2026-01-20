@@ -27,8 +27,8 @@ jobs:
           - platform: macos-14
             target: aarch64-apple-darwin
             name: macOS-ARM64
-          # Intel needs x86 runner (macos-13)
-          - platform: macos-13
+          # Intel needs x86 runner (macos-15)
+          - platform: macos-15
             target: x86_64-apple-darwin
             name: macOS-Intel
           - platform: windows-latest
