@@ -253,7 +253,7 @@
                         </div>
                         {#if !selectedFile}
                             <div class="upload-formats">
-                                Supported: .docx, .pdf, .txt
+                                Supported: .docx, .pdf, .txt, .md
                             </div>
                         {/if}
                     </div>
