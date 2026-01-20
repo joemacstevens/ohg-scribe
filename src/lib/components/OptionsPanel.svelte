@@ -1,7 +1,6 @@
 <script lang="ts">
   import { optionsStore } from "$lib/stores/options";
-  import type { TranscriptionOptions, SpeakerLabelMode } from "$lib/types";
-  import SpeakersSection from "./options/SpeakersSection.svelte";
+  import type { TranscriptionOptions } from "$lib/types";
   import VocabularySection from "./options/VocabularySection.svelte";
   import AnalysisSection from "./options/AnalysisSection.svelte";
   import VocabularyManager from "./vocabulary-manager/VocabularyManager.svelte";
@@ -33,23 +32,6 @@
   optionsStore.subscribe((value) => {
     options = value;
   });
-
-  // Speakers handlers
-  function handleSpeakerCountChange(value: "auto" | number) {
-    optionsStore.update({ speakerCount: value });
-  }
-
-  function handleSpeakerLabelModeChange(value: SpeakerLabelMode) {
-    optionsStore.update({ speakerLabelMode: value });
-    // Clear the names input when switching modes
-    if (value !== "known-names" && value !== "custom-roles") {
-      optionsStore.update({ speakerNamesInput: "" });
-    }
-  }
-
-  function handleSpeakerNamesInputChange(value: string) {
-    optionsStore.update({ speakerNamesInput: value });
-  }
 
   // Vocabulary handlers
   function handleBoostWordsChange(words: string[]) {
@@ -101,20 +83,11 @@
 <div class="options-panel">
   <button class="toggle-btn" onclick={() => (isExpanded = !isExpanded)}>
     <span class="toggle-icon">{isExpanded ? "▲" : "▼"}</span>
-    Customize
+    More Options
   </button>
 
   {#if isExpanded}
     <div class="options-content">
-      <SpeakersSection
-        speakerCount={options.speakerCount}
-        speakerLabelMode={options.speakerLabelMode}
-        speakerNamesInput={options.speakerNamesInput}
-        onSpeakerCountChange={handleSpeakerCountChange}
-        onSpeakerLabelModeChange={handleSpeakerLabelModeChange}
-        onSpeakerNamesInputChange={handleSpeakerNamesInputChange}
-      />
-
       <VocabularySection
         boostWords={options.boostWords}
         boostWordsInput={options.boostWordsInput}

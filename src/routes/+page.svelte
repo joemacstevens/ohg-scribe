@@ -8,6 +8,7 @@
   import SettingsModal from "$lib/components/SettingsModal.svelte";
   import HistoryPanel from "$lib/components/HistoryPanel.svelte";
   import Toast from "$lib/components/Toast.svelte";
+  import SpeakerControls from "$lib/components/SpeakerControls.svelte";
   import { queueStore } from "$lib/stores/queue";
   import { optionsStore } from "$lib/stores/options";
   import type { FileJob, TranscriptionOptions } from "$lib/types";
@@ -408,6 +409,8 @@
   </header>
 
   <div class="content">
+    <SpeakerControls />
+
     <DropZone onFilesDropped={handleFilesDropped} compact={hasJobs} />
 
     {#if hasJobs}
