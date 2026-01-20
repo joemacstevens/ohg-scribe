@@ -16,6 +16,10 @@
         saveDocument,
     } from "$lib/services/docx-export";
     import { save } from "@tauri-apps/plugin-dialog";
+    import SpeakerEditModal from "$lib/components/SpeakerEditModal.svelte";
+    import RefinePanel, {
+        type RefineOptions,
+    } from "$lib/components/RefinePanel.svelte";
 
     let entry: HistoryEntry | null = $state(null);
     let loading = $state(true);
@@ -30,6 +34,25 @@
     let currentTime = $state(0);
     let duration = $state(0);
     let currentSegmentIndex = $state(-1);
+
+    // Inline speaker editing state - tracks segment INDEX for single-instance edits
+    let editingSegmentIndex = $state<number | null>(null);
+    let editingSpeakerNewName = $state("");
+
+    // Bulk speaker edit modal state
+    let showSpeakerEditModal = $state(false);
+
+    // Refine panel state
+    let showRefinePanel = $state(false);
+    let isRefining = $state(false);
+    let refineProgress = $state("");
+
+    // Computed: Set of AI-inferred speaker names for display
+    const aiInferredSet = $derived(new Set(entry?.aiInferredSpeakers ?? []));
+
+    function isAiInferred(speakerName: string): boolean {
+        return aiInferredSet.has(speakerName);
+    }
 
     // Convert audio path to asset URL for Tauri WebView
     const audioSrc = $derived(
@@ -161,12 +184,16 @@
                     }),
                 );
 
+                // Get the AI-inferred names (the values in the mapping)
+                const inferredNames = Object.values(mapping);
+
                 entry = {
                     ...entry,
                     transcript: {
                         ...entry.transcript,
                         segments: updatedSegments,
                     },
+                    aiInferredSpeakers: inferredNames,
                 };
 
                 // Save updated entry to history
@@ -273,6 +300,205 @@
         const seconds = totalSeconds % 60;
         return `${minutes}:${seconds.toString().padStart(2, "0")}`;
     }
+
+    // Inline speaker name editing - edits ONLY the clicked segment (single instance)
+    function startEditingSegment(segmentIndex: number, event: MouseEvent) {
+        event.stopPropagation(); // Don't trigger segment click
+        if (!entry) return;
+        editingSegmentIndex = segmentIndex;
+        editingSpeakerNewName = entry.transcript.segments[segmentIndex].speaker;
+    }
+
+    async function saveSegmentSpeaker() {
+        if (
+            !entry ||
+            editingSegmentIndex === null ||
+            !editingSpeakerNewName.trim()
+        ) {
+            editingSegmentIndex = null;
+            return;
+        }
+
+        const oldName = entry.transcript.segments[editingSegmentIndex].speaker;
+        const newName = editingSpeakerNewName.trim();
+
+        if (oldName === newName) {
+            editingSegmentIndex = null;
+            return;
+        }
+
+        // Update ONLY this specific segment (single instance edit)
+        const updatedSegments = entry.transcript.segments.map((segment, i) => ({
+            ...segment,
+            speaker: i === editingSegmentIndex ? newName : segment.speaker,
+        }));
+
+        // If the old AI-inferred name is no longer used anywhere, remove it
+        const stillUsed = updatedSegments.some((s) => s.speaker === oldName);
+        let updatedAiInferred = entry.aiInferredSpeakers ?? [];
+        if (!stillUsed) {
+            updatedAiInferred = updatedAiInferred.filter(
+                (name) => name !== oldName,
+            );
+        }
+
+        entry = {
+            ...entry,
+            transcript: {
+                ...entry.transcript,
+                segments: updatedSegments,
+            },
+            aiInferredSpeakers: updatedAiInferred,
+        };
+
+        // Persist changes
+        await updateHistoryEntry(entry);
+        editingSegmentIndex = null;
+    }
+
+    function cancelEditingSegment() {
+        editingSegmentIndex = null;
+        editingSpeakerNewName = "";
+    }
+
+    function handleEditKeydown(event: KeyboardEvent) {
+        if (event.key === "Enter") {
+            saveSegmentSpeaker();
+        } else if (event.key === "Escape") {
+            cancelEditingSegment();
+        }
+    }
+
+    async function handleBulkSpeakerSave(renames: Record<string, string>) {
+        if (!entry || Object.keys(renames).length === 0) {
+            showSpeakerEditModal = false;
+            return;
+        }
+
+        // Apply all renames to segments
+        const updatedSegments = entry.transcript.segments.map((segment) => ({
+            ...segment,
+            speaker: renames[segment.speaker] ?? segment.speaker,
+        }));
+
+        // Update AI-inferred list: remove renamed speakers (they're now confirmed)
+        let updatedAiInferred = [...(entry.aiInferredSpeakers ?? [])];
+        for (const [oldName, newName] of Object.entries(renames)) {
+            updatedAiInferred = updatedAiInferred.filter(
+                (name) => name !== oldName && name !== newName,
+            );
+        }
+
+        entry = {
+            ...entry,
+            transcript: {
+                ...entry.transcript,
+                segments: updatedSegments,
+            },
+            aiInferredSpeakers: updatedAiInferred,
+        };
+
+        await updateHistoryEntry(entry);
+        showSpeakerEditModal = false;
+    }
+
+    async function handleRefine(options: RefineOptions) {
+        if (!entry || !entry.audioPath) {
+            error = "No cached audio available for refinement.";
+            showRefinePanel = false;
+            return;
+        }
+
+        isRefining = true;
+        refineProgress = "Preparing...";
+
+        try {
+            // Import required functions
+            const {
+                uploadAudio,
+                submitTranscription,
+                waitForTranscription,
+                parseTranscriptResponse,
+            } = await import("$lib/services/transcription");
+            const { saveToHistory, createHistoryEntry } = await import(
+                "$lib/services/history"
+            );
+
+            const apiKey = await getApiKey();
+            if (!apiKey) {
+                error =
+                    "AssemblyAI API key not configured. Please add it in Settings.";
+                showRefinePanel = false;
+                isRefining = false;
+                return;
+            }
+
+            // Collect user-edited speaker names as hints for refinement
+            const speakerHints: string[] = [];
+            if (entry.transcript?.segments) {
+                const uniqueSpeakers = new Set<string>();
+                for (const seg of entry.transcript.segments) {
+                    if (seg.speaker && !uniqueSpeakers.has(seg.speaker)) {
+                        uniqueSpeakers.add(seg.speaker);
+                        speakerHints.push(seg.speaker);
+                    }
+                }
+            }
+
+            // Re-upload the cached audio
+            refineProgress = "Uploading audio...";
+            const uploadUrl = await uploadAudio(entry.audioPath, apiKey);
+
+            // Submit with new options and speaker hints
+            refineProgress = "Submitting transcription request...";
+            const transcriptId = await submitTranscription(uploadUrl, apiKey, {
+                speakerCount: options.speakerCount,
+                boostWords: options.boostWords,
+                boostWordsInput: options.boostWords.join(", "),
+                selectedPresets: [],
+                includeSummary: entry.options.includedSummary,
+                detectTopics: entry.options.includedTopics,
+                analyzeSentiment: entry.options.includedSentiment,
+                extractKeyPhrases: false,
+                speakerLabelMode: options.speakerLabelMode as any,
+                speakerNamesInput: speakerHints.join(", "),
+            });
+
+            // Wait for completion with progress updates
+            refineProgress = "Transcribing audio...";
+            const response = await waitForTranscription(transcriptId, apiKey);
+
+            refineProgress = "Processing results...";
+            const transcript = parseTranscriptResponse(response, speakerHints);
+
+            // Create new history entry
+            const newEntry = createHistoryEntry(
+                entry.filename,
+                entry.originalPath,
+                transcript,
+                {
+                    speakerNames: speakerHints,
+                    includedSummary: entry.options.includedSummary,
+                    includedTopics: entry.options.includedTopics,
+                    includedSentiment: entry.options.includedSentiment,
+                },
+                entry.audioPath,
+            );
+
+            // Save new entry
+            await saveToHistory(newEntry);
+
+            // Navigate to new transcript
+            isRefining = false;
+            showRefinePanel = false;
+            goto(`/transcript/${newEntry.id}`);
+        } catch (e) {
+            error = `Failed to refine transcript: ${e instanceof Error ? e.message : String(e)}`;
+            console.error(error);
+            isRefining = false;
+            showRefinePanel = false;
+        }
+    }
 </script>
 
 <svelte:head>
@@ -307,6 +533,22 @@
                 >
                     {identifying ? "Identifying..." : "🪄 Identify Speakers"}
                 </button>
+                <button
+                    class="edit-speakers-btn"
+                    onclick={() => (showSpeakerEditModal = true)}
+                    title="Bulk edit all speaker names"
+                >
+                    ✏️ Edit Speakers
+                </button>
+                {#if entry.audioPath}
+                    <button
+                        class="refine-btn"
+                        onclick={() => (showRefinePanel = true)}
+                        title="Re-transcribe with different settings"
+                    >
+                        ⚙️ Refine
+                    </button>
+                {/if}
                 <button
                     class="export-btn"
                     onclick={exportToWord}
@@ -362,7 +604,7 @@
                             isPlaying = false;
                             currentSegmentIndex = -1;
                         }}
-                    />
+                    ></audio>
                     <button class="play-btn" onclick={togglePlayPause}>
                         {isPlaying ? "⏸️" : "▶️"}
                     </button>
@@ -399,7 +641,35 @@
                         tabindex="0"
                     >
                         <div class="segment-header">
-                            <span class="speaker">{segment.speaker}</span>
+                            {#if editingSegmentIndex === i}
+                                <input
+                                    type="text"
+                                    class="speaker-edit-input"
+                                    bind:value={editingSpeakerNewName}
+                                    onblur={saveSegmentSpeaker}
+                                    onkeydown={handleEditKeydown}
+                                    onclick={(e) => e.stopPropagation()}
+                                />
+                            {:else}
+                                <button
+                                    class="speaker"
+                                    class:ai-inferred={isAiInferred(
+                                        segment.speaker,
+                                    )}
+                                    onclick={(e) => startEditingSegment(i, e)}
+                                    title={isAiInferred(segment.speaker)
+                                        ? "AI-inferred name — click to edit this instance"
+                                        : "Click to edit this speaker instance"}
+                                >
+                                    {segment.speaker}
+                                    {#if isAiInferred(segment.speaker)}
+                                        <span
+                                            class="ai-badge"
+                                            title="AI-inferred name">✨</span
+                                        >
+                                    {/if}
+                                </button>
+                            {/if}
                             <span class="timestamp"
                                 >{formatTime(segment.start)}</span
                             >
@@ -416,6 +686,25 @@
         {/if}
     </div>
 </main>
+
+{#if showSpeakerEditModal && entry}
+    <SpeakerEditModal
+        segments={entry.transcript.segments}
+        aiInferredSpeakers={entry.aiInferredSpeakers ?? []}
+        onSave={handleBulkSpeakerSave}
+        onClose={() => (showSpeakerEditModal = false)}
+    />
+{/if}
+
+{#if showRefinePanel && entry}
+    <RefinePanel
+        {entry}
+        onRefine={handleRefine}
+        onClose={() => (showRefinePanel = false)}
+        {isRefining}
+        {refineProgress}
+    />
+{/if}
 
 <style>
     .transcript-page {
@@ -488,6 +777,41 @@
     .identify-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+    }
+
+    .edit-speakers-btn {
+        background: var(--white, #ffffff);
+        color: var(--gray-600, #4b5563);
+        border: 1px solid var(--lavender-dark, #e8e0f0);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .edit-speakers-btn:hover {
+        background: var(--lavender-light, #f8f5fa);
+        border-color: var(--purple, #6b2d7b);
+        color: var(--purple, #6b2d7b);
+    }
+
+    .refine-btn {
+        background: var(--white, #ffffff);
+        color: var(--gray-600, #4b5563);
+        border: 1px solid var(--lavender-dark, #e8e0f0);
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .refine-btn:hover {
+        background: var(--lavender-light, #f8f5fa);
+        border-color: var(--gray-400, #9ca3af);
     }
 
     .export-btn {
@@ -651,10 +975,50 @@
     .speaker {
         font-weight: 600;
         color: var(--magenta, #e91388);
+        background: none;
+        border: none;
+        padding: 2px 6px;
+        margin: -2px -6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.15s;
+    }
+
+    .speaker:hover {
+        background: var(--lavender-light, #f8f5fa);
     }
 
     .segment.even .speaker {
         color: var(--purple, #6b2d7b);
+    }
+
+    .speaker.ai-inferred {
+        font-style: italic;
+    }
+
+    .ai-badge {
+        font-size: 12px;
+        cursor: help;
+    }
+
+    .speaker-edit-input {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--magenta, #e91388);
+        border: 1px solid var(--magenta, #e91388);
+        border-radius: 4px;
+        padding: 4px 8px;
+        background: var(--white, #ffffff);
+        outline: none;
+        min-width: 120px;
+    }
+
+    .speaker-edit-input:focus {
+        box-shadow: 0 0 0 2px rgba(233, 19, 136, 0.2);
     }
 
     .timestamp {

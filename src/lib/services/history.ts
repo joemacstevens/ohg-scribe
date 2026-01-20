@@ -20,6 +20,7 @@ export interface HistoryEntry {
         includedTopics: boolean;
         includedSentiment: boolean;
     };
+    aiInferredSpeakers?: string[]; // Speakers names that were AI-inferred (not user-confirmed)
 }
 
 export interface HistorySummary {

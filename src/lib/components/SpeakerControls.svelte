@@ -175,16 +175,19 @@
     .toggle {
         width: 44px;
         height: 24px;
-        background: var(--gray-300);
-        border: none;
+        background: var(--lavender-dark, #e8e0f0);
+        border: 1px solid var(--gray-300, #d1d5db);
         border-radius: 12px;
         cursor: pointer;
         position: relative;
-        transition: background 0.2s;
+        transition:
+            background 0.2s,
+            border-color 0.2s;
     }
 
     .toggle.active {
         background: var(--magenta);
+        border-color: var(--magenta);
     }
 
     .toggle-thumb {
