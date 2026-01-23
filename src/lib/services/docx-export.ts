@@ -443,3 +443,104 @@ export async function saveDocument(
     }
 }
 
+// Parse HTML string to Docx paragraphs
+function parseHtmlToDocx(html: string): Paragraph[] {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const paragraphs: Paragraph[] = [];
+
+    // Helper to process nodes recursively
+    // For this simple implementation, we iterate over top-level blocks
+    // as strict nesting isn't heavily used in the AI output except for lists
+
+    const children = Array.from(doc.body.children);
+
+    for (const child of children) {
+        if (child.tagName === 'H1') {
+            paragraphs.push(new Paragraph({
+                text: child.textContent || '',
+                heading: 'Heading1',
+                spacing: { before: 400, after: 200 }
+            }));
+        } else if (child.tagName === 'H2') {
+            paragraphs.push(new Paragraph({
+                text: child.textContent || '',
+                heading: 'Heading2',
+                spacing: { before: 300, after: 150 }
+            }));
+        } else if (child.tagName === 'P') {
+            paragraphs.push(new Paragraph({
+                children: [new TextRun({
+                    text: child.textContent || '',
+                    size: 24 // 12pt
+                })],
+                spacing: { after: 200 }
+            }));
+        } else if (child.tagName === 'UL' || child.tagName === 'OL') {
+            const items = Array.from(child.children);
+            items.forEach(li => {
+                if (li.tagName === 'LI') {
+                    paragraphs.push(new Paragraph({
+                        children: [new TextRun({
+                            text: li.textContent || '',
+                            size: 24
+                        })],
+                        bullet: {
+                            level: 0
+                        }
+                    }));
+                }
+            });
+        }
+    }
+
+    return paragraphs;
+}
+
+export async function generateMinutesDocument(
+    htmlContent: string,
+    filename: string
+): Promise<Uint8Array> {
+    const children = parseHtmlToDocx(htmlContent);
+
+    // Create document
+    const doc = new Document({
+        sections: [
+            {
+                properties: {
+                    page: {
+                        margin: {
+                            top: convertInchesToTwip(1),
+                            right: convertInchesToTwip(1),
+                            bottom: convertInchesToTwip(1),
+                            left: convertInchesToTwip(1),
+                        },
+                    },
+                },
+                children: [
+                    // Title
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: `Meeting Minutes: ${cleanTitle(filename)}`,
+                                bold: true,
+                                size: 32,
+                            }),
+                        ],
+                        spacing: { after: 400 },
+                    }),
+                    ...children
+                ],
+            },
+        ],
+    });
+
+    try {
+        const blob = await Packer.toBlob(doc);
+        const arrayBuffer = await blob.arrayBuffer();
+        return new Uint8Array(arrayBuffer);
+    } catch (error) {
+        console.error('Error generating Minutes doc:', error);
+        throw new Error(`Failed to generate Minutes document: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
