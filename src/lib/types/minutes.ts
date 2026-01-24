@@ -31,4 +31,43 @@ export interface Persona {
     isDefault?: boolean;
 }
 
+/**
+ * Client-specific style conventions for output formatting.
+ * Captures voice, attribution format, decision vocabulary, and Q&A structure.
+ */
+export interface Style {
+    id: string;
+    name: string;
+    voice: {
+        person: 'first' | 'third';
+        voice: 'active' | 'passive';
+    };
+    attribution: {
+        format: '4-char-initials' | 'first-initial-last' | 'full-name' | 'single-letter';
+        unknownSpeaker: string;
+    };
+    decisions: {
+        vocabulary: {
+            approved: string;
+            deferredToMeeting: string;
+            deferredToEmail: string;
+            notEndorsed: string;
+        };
+        forbiddenTerms: string[];
+        formatting: 'bold_italic' | 'bold' | 'plain';
+    };
+    qanda: {
+        nesting: boolean;
+        indentStyle: 'dash' | 'bullet';
+        preserveReasoning: boolean;
+        verbs: {
+            question: string;
+            response: string;
+        };
+    };
+    methodology: {
+        summarization: 'none' | 'light' | 'standard';
+    };
+}
+
 // Data constants have been moved to $lib/data/templates.ts and $lib/data/personas.ts

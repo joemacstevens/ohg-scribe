@@ -1,17 +1,24 @@
 <script lang="ts">
     import { workspaceStore } from "$lib/stores/workspace";
-    import { type Template, type Persona } from "$lib/types/minutes";
+    import {
+        type Template,
+        type Lexicon,
+        type Style,
+    } from "$lib/types/minutes";
     import { DEFAULT_TEMPLATES } from "$lib/data/templates";
-    import { DEFAULT_PERSONAS } from "$lib/data/personas";
+    import { DEFAULT_STYLES } from "$lib/data/styles";
+    import { MEDICAL_WRITER } from "$lib/data/personas";
+    import SEMAGLUTIDE_LEXICON from "$lib/data/lexicons/semaglutide.json";
     import { generateMinutes } from "$lib/services/ai";
     import { fade, fly } from "svelte/transition";
-    import PersonaManager from "../PersonaManager.svelte"; // Ensure this matches actual path
+    import StyleSelector from "./StyleSelector.svelte";
+    import LexiconSelector from "./LexiconSelector.svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { open } from "@tauri-apps/plugin-dialog";
 
     let selectedTemplate = $state<Template | null>(null);
-    let selectedPersona = $state<Persona>(DEFAULT_PERSONAS[0]);
-    let isPersonaManagerOpen = $state(false);
+    let selectedStyle = $state<Style>(DEFAULT_STYLES[1]); // Novo Nordisk as default
+    let selectedLexicon = $state<Lexicon>(SEMAGLUTIDE_LEXICON as Lexicon);
     let isGenerating = $state(false);
     let error = $state<string | null>(null);
     let slideContext = $state("");
@@ -30,7 +37,9 @@
             const minutesHtml = await generateMinutes({
                 transcript: $workspaceStore.currentTranscript,
                 template: selectedTemplate,
-                persona: selectedPersona,
+                persona: MEDICAL_WRITER, // Fixed base agent
+                style: selectedStyle,
+                lexicon: selectedLexicon,
                 slideContext,
             });
 
@@ -47,9 +56,8 @@
         }
     }
 
-    function handlePersonaSave(newPersona: Persona) {
-        selectedPersona = newPersona;
-        isPersonaManagerOpen = false;
+    function handleStyleSave(newStyle: Style) {
+        selectedStyle = newStyle;
     }
 
     let {
@@ -187,37 +195,9 @@
             {/each}
         </div>
 
-        <div class="persona-section">
-            <label class="section-label">Writing Persona</label>
-            <div class="persona-selector">
-                <select bind:value={selectedPersona} class="persona-select">
-                    {#each DEFAULT_PERSONAS as persona}
-                        <option value={persona}>{persona.name}</option>
-                    {/each}
-                </select>
-                <button
-                    class="edit-persona-btn"
-                    onclick={() => (isPersonaManagerOpen = true)}
-                >
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                        ></path>
-                        <path
-                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                        ></path>
-                    </svg>
-                    Edit Personas
-                </button>
-            </div>
-            <p class="persona-desc">{selectedPersona.roleDefinition}</p>
+        <div class="selector-row">
+            <StyleSelector bind:selected={selectedStyle} />
+            <LexiconSelector bind:selected={selectedLexicon} />
         </div>
 
         <div class="field">
@@ -308,12 +288,6 @@
             </div>
         </div>
     </div>
-
-    <PersonaManager
-        isOpen={isPersonaManagerOpen}
-        onClose={() => (isPersonaManagerOpen = false)}
-        onSave={handlePersonaSave}
-    />
 </div>
 
 <style>
@@ -470,63 +444,17 @@
         border-radius: 2px;
     }
 
-    /* Persona */
-    .persona-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+    /* Style and Lexicon Selectors */
+    .selector-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
     }
 
     .section-label {
         font-size: 13px;
         font-weight: 600;
         color: var(--navy);
-    }
-
-    .persona-selector {
-        display: flex;
-        gap: 8px;
-    }
-
-    .persona-select {
-        flex: 1;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid var(--gray-300);
-        background: white;
-        font-size: 14px;
-        color: var(--navy);
-    }
-
-    .edit-persona-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0 12px;
-        border: 1px solid var(--gray-300);
-        background: white;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .edit-persona-btn:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-    }
-
-    .persona-desc {
-        margin: 0;
-        font-size: 13px;
-        color: var(--gray-600);
-        font-style: italic;
-        background: white;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px dashed var(--gray-300);
     }
 
     /* Actions */

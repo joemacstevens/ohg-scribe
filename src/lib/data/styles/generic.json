@@ -1,0 +1,34 @@
+{
+    "id": "generic",
+    "name": "Generic",
+    "voice": {
+        "person": "third",
+        "voice": "passive"
+    },
+    "attribution": {
+        "format": "single-letter",
+        "unknownSpeaker": "[Unattributed]"
+    },
+    "decisions": {
+        "vocabulary": {
+            "approved": "✅ Endorsed",
+            "deferredToMeeting": "⚠️ Deferred (to be discussed at next meeting)",
+            "deferredToEmail": "⚠️ Deferred (for email consideration)",
+            "notEndorsed": "❌ Not endorsed"
+        },
+        "forbiddenTerms": [],
+        "formatting": "plain"
+    },
+    "qanda": {
+        "nesting": false,
+        "indentStyle": "bullet",
+        "preserveReasoning": false,
+        "verbs": {
+            "question": "asked",
+            "response": "replied"
+        }
+    },
+    "methodology": {
+        "summarization": "standard"
+    }
+}
