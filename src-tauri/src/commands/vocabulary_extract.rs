@@ -65,6 +65,8 @@ pub async fn extract_document_text(path: String) -> Result<String, String> {
         }
         "docx" => extract_docx_text(path),
         "pdf" => extract_pdf_text(path),
+        "pptx" => extract_pptx_text(path),
+        "ppt" => Err("Legacy .ppt files are not supported directly. Please save the file as a .pptx or .pdf and try again.".to_string()),
         _ => Err(format!("Unsupported file type: {}", extension)),
     }
 }
@@ -95,25 +97,89 @@ fn extract_docx_text(path: &Path) -> Result<String, String> {
 }
 
 fn extract_pdf_text(path: &Path) -> Result<String, String> {
-    // For PDF extraction, we'll try using pdftotext command if available
-    use std::process::Command;
+    pdf_extract::extract_text(path).map_err(|e| format!("Failed to extract PDF text: {}", e))
+}
 
-    let output = Command::new("pdftotext")
-        .arg("-layout")
-        .arg(path)
-        .arg("-")
-        .output();
+fn extract_pptx_text(path: &Path) -> Result<String, String> {
+    use std::io::Read;
+    use zip::ZipArchive;
+    use quick_xml::events::Event;
+    use quick_xml::reader::Reader;
 
-    match output {
-        Ok(out) if out.status.success() => {
-            String::from_utf8(out.stdout).map_err(|e| format!("Invalid UTF-8 in PDF: {}", e))
+    let file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read pptx as zip: {}", e))?;
+
+    let mut text = String::new();
+    
+    // Iterate over slides 1..100 (arbitrary limit, but robust enough)
+    // Or iterate over all file names in zip? 
+    // Better to iterate filenames to find 'ppt/slides/slideX.xml'
+    
+    // Collect slide files and sort them numerically if possible, or just iterate zip
+    // Zip iteration order is not guaranteed to be numeric order of slides, but usually is ok for context.
+    // Let's filter for valid slide paths.
+    
+    let mut slide_files: Vec<String> = (0..archive.len())
+        .filter_map(|i| {
+            let file = archive.by_index(i).ok()?;
+            let name = file.name().to_string();
+            if name.starts_with("ppt/slides/slide") && name.ends_with(".xml") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Sort naturally: slide1, slide2, ..., slide10
+    slide_files.sort_by(|a, b| {
+        // extract number: ppt/slides/slide(\d+).xml
+        let extract_num = |s: &str| -> u32 {
+            s.trim_start_matches("ppt/slides/slide")
+                .trim_end_matches(".xml")
+                .parse()
+                .unwrap_or(0)
+        };
+        extract_num(a).cmp(&extract_num(b))
+    });
+
+    for slide_name in slide_files {
+        let mut slide_text = String::new();
+        let mut file = archive.by_name(&slide_name).map_err(|e| format!("Failed to read slide {}: {}", slide_name, e))?;
+        let mut content = String::new();
+        file.read_to_string(&mut content).map_err(|e| format!("Failed to read content of {}: {}", slide_name, e))?;
+
+        let mut reader = Reader::from_str(&content);
+        reader.config_mut().trim_text(true);
+
+        let mut buf = Vec::new();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Text(e)) => {
+                    let txt = e.unescape().unwrap_or_default();
+                    slide_text.push_str(&txt);
+                    slide_text.push(' ');
+                }
+                Ok(Event::Eof) => break,
+                Err(_) => break, // ignore errors in xml
+                _ => (),
+            }
+            buf.clear();
         }
-        Ok(out) => Err(format!(
-            "pdftotext failed: {}",
-            String::from_utf8_lossy(&out.stderr)
-        )),
-        Err(_) => Err("PDF extraction requires pdftotext (install poppler-utils). For now, please use .docx or .txt files.".to_string()),
+        
+        if !slide_text.trim().is_empty() {
+             text.push_str(&format!("--- SLIDE {} ---\n", slide_name));
+             text.push_str(&slide_text);
+             text.push('\n');
+        }
     }
+
+    if text.is_empty() {
+         return Err("No text found in presentation slides.".to_string());
+    }
+
+    Ok(text)
 }
 
 #[tauri::command]

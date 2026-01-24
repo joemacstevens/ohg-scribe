@@ -1,0 +1,40 @@
+{
+    "id": "novo-nordisk",
+    "name": "Novo Nordisk",
+    "voice": {
+        "person": "third",
+        "voice": "passive"
+    },
+    "attribution": {
+        "format": "4-char-initials",
+        "unknownSpeaker": "[Unattributed]"
+    },
+    "decisions": {
+        "vocabulary": {
+            "approved": "***Endorsed***",
+            "deferredToMeeting": "***Offline discussion and consideration at the next PPG meeting***",
+            "deferredToEmail": "***To be discussed offline and considered for email endorsement***",
+            "notEndorsed": "***Requires further clarification before endorsement***"
+        },
+        "forbiddenTerms": [
+            "Not endorsed",
+            "Rejected",
+            "Deferred",
+            "Approved",
+            "Accepted"
+        ],
+        "formatting": "bold_italic"
+    },
+    "qanda": {
+        "nesting": true,
+        "indentStyle": "dash",
+        "preserveReasoning": true,
+        "verbs": {
+            "question": "asked",
+            "response": "stated"
+        }
+    },
+    "methodology": {
+        "summarization": "none"
+    }
+}

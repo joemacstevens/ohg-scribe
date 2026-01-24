@@ -70,7 +70,7 @@ pub async fn convert_to_audio(
     // Keep the temp dir alive by leaking it (we'll clean up later via the frontend)
     let temp_dir = Box::leak(Box::new(temp_dir));
     
-    let output_path = temp_dir.path().join(format!("{}.mp3", filename));
+    let output_path = temp_dir.path().join(format!("{}.m4a", filename));
     let output_str = output_path.to_string_lossy().to_string();
     
     info!("Output path: {}", output_str);
@@ -85,6 +85,7 @@ pub async fn convert_to_audio(
     // -vn           Strip video track
     // -ac 1         Mono channel
     // -ar 16000     16kHz sample rate
+    // -c:a aac      Use AAC codec (better seeking than mp3 at low bitrates)
     // -b:a 32k      32kbps bitrate
     // -y            Overwrite output without asking
     let output = shell
@@ -98,6 +99,7 @@ pub async fn convert_to_audio(
             "-vn",
             "-ac", "1",
             "-ar", "16000",
+            "-c:a", "aac",
             "-b:a", "32k",
             "-y",
             &output_str,
