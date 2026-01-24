@@ -1,0 +1,384 @@
+{
+    "source": "Novo Nordisk Lexicon (Semaglutide/Obesity) v7.0",
+    "rules": [
+        {
+            "category": "Body composition",
+            "to": "intramuscular adipose tissue (IMAT)",
+            "from": [
+                "fat infiltration",
+                "fatty muscle fraction",
+                "myosteatosis",
+                "adipose tissue in muscle",
+                "intramyocellular lipids",
+                "muscle fat"
+            ],
+            "acronym": "IMAT"
+        },
+        {
+            "category": "People-first language",
+            "to": "people living with obesity",
+            "from": [
+                "obese patients",
+                "obese subjects",
+                "patients with obesity"
+            ],
+            "notes": "Always use people-first language"
+        },
+        {
+            "category": "Therapy class",
+            "to": "anti-obesity medication (AOM)",
+            "from": [
+                "weight loss drug",
+                "weight-loss drug",
+                "weight loss medication",
+                "weight-loss medication",
+                "Anti-obesity therapy"
+            ],
+            "acronym": "AOM"
+        },
+        {
+            "category": "Therapy class",
+            "to": "weight-management medication",
+            "from": [
+                "Weight-management medication"
+            ],
+            "notes": "Avoid using: Weight-loss medication"
+        },
+        {
+            "category": "Endpoints",
+            "to": "major adverse cardiovascular events (MACE)",
+            "from": [
+                "cardiac events",
+                "heart problems",
+                "major cardiovascular events"
+            ],
+            "acronym": "MACE",
+            "notes": "Specify 3-point or 5-point when stated. Always plural."
+        },
+        {
+            "category": "Endpoints",
+            "to": "three-point MACE",
+            "from": [
+                "3-point mace",
+                "3 point mace",
+                "three-point mace"
+            ],
+            "acronym": "MACE"
+        },
+        {
+            "category": "Endpoints",
+            "to": "five-point MACE",
+            "from": [
+                "5-point mace",
+                "5 point mace",
+                "five-point mace"
+            ],
+            "acronym": "MACE"
+        },
+        {
+            "category": "CV outcomes",
+            "to": "myocardial infarction (MI)",
+            "from": [
+                "mi",
+                "heart attack",
+                "acute myocardial infarction"
+            ],
+            "acronym": "MI"
+        },
+        {
+            "category": "CV outcomes",
+            "to": "non-fatal myocardial infarction (MI)",
+            "from": [
+                "non-fatal mi",
+                "nonfatal mi"
+            ],
+            "acronym": "MI"
+        },
+        {
+            "category": "CV outcomes",
+            "to": "non-fatal stroke",
+            "from": [
+                "stroke (non-fatal)",
+                "non-fatal stroke",
+                "nonfatal stroke"
+            ]
+        },
+        {
+            "category": "Blood pressure",
+            "to": "systolic blood pressure (SBP)",
+            "from": [
+                "blood pressure",
+                "sbp"
+            ],
+            "acronym": "SBP"
+        },
+        {
+            "category": "Renal",
+            "to": "renal outcomes",
+            "from": [
+                "kidney outcomes",
+                "kidney events"
+            ]
+        },
+        {
+            "category": "Evidence type",
+            "to": "real-world evidence (RWE) study",
+            "from": [
+                "real world analysis",
+                "real world data",
+                "real-world data study"
+            ],
+            "acronym": "RWE"
+        },
+        {
+            "category": "Study design",
+            "to": "non-interventional study",
+            "from": [
+                "observational study"
+            ]
+        },
+        {
+            "category": "Study design",
+            "to": "randomised controlled trial (RCT)",
+            "from": [
+                "clinical trial",
+                "trial (randomized)"
+            ],
+            "acronym": "RCT"
+        },
+        {
+            "category": "Analysis type",
+            "to": "secondary (post-hoc) analysis",
+            "from": [
+                "secondary analysis",
+                "posthoc analysis",
+                "post-hoc analysis",
+                "post-hoc analyses",
+                "Analyses were performed post hoc"
+            ]
+        },
+        {
+            "category": "Drug reference",
+            "to": "once-weekly subcutaneous semaglutide 2.4 mg",
+            "from": [
+                "semaglutide 2.4",
+                "wegovy 2.4",
+                "weekly semaglutide",
+                "s.c. semaglutide DOSE once weekly"
+            ]
+        },
+        {
+            "category": "Drug reference",
+            "to": "Oral semaglutide DOSE (e.g. oral semaglutide 3 mg once daily)",
+            "from": [
+                "Oral semaglutide DOSE"
+            ]
+        },
+        {
+            "category": "Drug reference",
+            "to": "liraglutide 3.0 mg",
+            "from": [
+                "liraglutide 3 mg",
+                "liraglutide 3.0"
+            ]
+        },
+        {
+            "category": "Drug reference",
+            "to": "tirzepatide (dual GIP/GLP-1 receptor agonist)",
+            "from": [
+                "tirzepatide"
+            ],
+            "acronym": "tirzepatide"
+        },
+        {
+            "category": "Drug reference",
+            "to": "GLP-1 receptor agonists",
+            "from": [
+                "GLP-1 receptor agonists",
+                "GLP-1-based therapies"
+            ],
+            "acronym": "GLP-1RA",
+            "notes": "Avoid using: 'mimetics', 'GLP-1 RA' (with a space)"
+        },
+        {
+            "category": "Drug reference",
+            "to": "Semaglutide",
+            "from": [
+                "Semaglutide"
+            ],
+            "notes": "When referring to product in specific indication, include dose. Avoid brand names (Ozempic, Rybelsus, Wegovy) in publications."
+        },
+        {
+            "category": "Comparative methods",
+            "to": "network meta-analysis (NMA)",
+            "from": [
+                "indirect treatment comparison",
+                "indirect comparison",
+                "network meta analysis",
+                "network meta-analysis"
+            ],
+            "acronym": "NMA"
+        },
+        {
+            "category": "Comparative methods",
+            "to": "model-based network meta-analysis (MBNMA)",
+            "from": [
+                "model based network meta analysis",
+                "model-based network meta analysis",
+                "mbnma method"
+            ],
+            "acronym": "MBNMA"
+        },
+        {
+            "category": "Stats",
+            "to": "intention-to-treat (ITT) analysis",
+            "from": [
+                "itt"
+            ],
+            "acronym": "ITT"
+        },
+        {
+            "category": "Stats",
+            "to": "per-protocol (PP) analysis",
+            "from": [
+                "per protocol",
+                "pp analysis"
+            ],
+            "acronym": "PP"
+        },
+        {
+            "category": "Stats",
+            "to": "propensity score matching (PSM)",
+            "from": [
+                "propensity matching",
+                "psm"
+            ],
+            "acronym": "PSM"
+        },
+        {
+            "category": "HRV & devices",
+            "to": "heart rate variability (HRV)",
+            "from": [
+                "heart rate variability",
+                "hrv"
+            ],
+            "acronym": "HRV"
+        },
+        {
+            "category": "HRV & devices",
+            "to": "electrocardiogram (ECG)",
+            "from": [
+                "electrocardiogram",
+                "ecg",
+                "ekg"
+            ],
+            "acronym": "ECG"
+        },
+        {
+            "category": "Publications",
+            "to": "manuscript",
+            "from": [
+                "paper",
+                "publication (journal)"
+            ]
+        },
+        {
+            "category": "Publications",
+            "to": "abstract",
+            "from": [
+                "conference abstract",
+                "meeting abstract"
+            ]
+        },
+        {
+            "category": "Publications",
+            "to": "poster",
+            "from": [
+                "poster presentation",
+                "conference poster"
+            ]
+        },
+        {
+            "category": "Publications",
+            "to": "oral presentation",
+            "from": [
+                "oral",
+                "talk",
+                "podium"
+            ]
+        },
+        {
+            "category": "Cardiovascular & Kidney Disease",
+            "to": "Cardiovascular disease",
+            "from": [
+                "Cardiovascular disease"
+            ],
+            "acronym": "CVD",
+            "notes": "Use 'CVD', but use 'ASCVD' when specifically referring to atherosclerotic cardiovascular disease."
+        },
+        {
+            "category": "Cardiovascular & Kidney Disease",
+            "to": "Atherosclerotic cardiovascular disease",
+            "from": [
+                "Atherosclerotic cardiovascular disease"
+            ],
+            "acronym": "ASCVD"
+        },
+        {
+            "category": "Cardiovascular & Kidney Disease",
+            "to": "Heart failure with preserved ejection fraction",
+            "from": [
+                "HFpEF",
+                "Heart failure with preserved ejection fraction"
+            ],
+            "acronym": "HFpEF",
+            "notes": "Note lower case 'p'. Avoid: HFPEF, 'Obese phenotype of HFpEF'. HFpEF is a syndrome."
+        },
+        {
+            "category": "Cardiovascular & Kidney Disease",
+            "to": "Chronic kidney disease",
+            "from": [
+                "Chronic kidney disease"
+            ],
+            "acronym": "CKD"
+        },
+        {
+            "category": "Cardiovascular & Kidney Disease",
+            "to": "Diabetic kidney disease",
+            "from": [
+                "Diabetic kidney disease"
+            ],
+            "acronym": "DKD",
+            "notes": "Avoid: Diabetic nephropathy"
+        },
+        {
+            "category": "Publication Style",
+            "to": "phase 3",
+            "from": [
+                "phase 3",
+                "Phase III"
+            ],
+            "notes": "Lower-case description and Arabic number. Do not capitalise or use Roman numerals."
+        },
+        {
+            "category": "Publication Style",
+            "to": "vs",
+            "from": [
+                "vs",
+                "versus",
+                "vs."
+            ],
+            "notes": "No dot."
+        },
+        {
+            "category": "Publication Style",
+            "to": "p value",
+            "from": [
+                "P value",
+                "P-value",
+                "p-value"
+            ],
+            "notes": "Lowercase p, no hyphen. Do not italicise."
+        }
+    ]
+}

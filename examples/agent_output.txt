@@ -1,0 +1,167 @@
+One Obesity PPG Meeting Minutes
+
+Date: 20 May 2025
+Chair: Thomas Turpin-Jelfs (TCIT)
+Attendees: Chris, Itai, Maria, Lisa, Nina, Timothy, Inger, others joined via chat.
+Apologies: Not stated
+Location: Virtual/Online
+
+ ---
+
+Executive Summary
+
+ProposalPPG DecisionAssessment of the Carbon Emissions Impact Associated with Semaglutide for Obesity/Diabetes in the UK✅ EndorsedIndirect Treatment Comparison (ITC) of Oral semaglutide 25mg with s.c. injectable semaglutide 2.4mg✅ EndorsedRelationships between body mass indices and surgical replacements of knee and hip joints✅ EndorsedImpact of Wegovy on household shopping, lifestyle and behavioural metrics in US; Impact of Wegovy on food noise and mental wellbeing in US❌ Not endorsed (pending further clarification)Real world cardiovascular and gastro-intestinal benefit of Wegovy compared to Zepbound in US⚠️ Deferred (pending data analysis)
+
+ ---
+
+Proposal Summaries
+
+Assessment of the Carbon Emissions Impact Associated with Semaglutide for Obesity/Diabetes in the UK
+
+Presenter(s): CJLU
+Source: Slide-sourced
+
+Who / What / Actions
+
+WhoWhatActionsCJLUPresented assessment of carbon emissions impactNone statedAllReview / decisionNot stated
+
+Abstract / Manuscript
+Target congress / journal: Value in Health / Pharmacoeconomics
+Submission date / deadline: Q3 2025
+
+Presentation Summary
+Aim / Objective: Evaluate carbon emissions impact of Semaglutide
+Design / Data sources: Utilized established trials and health economic models
+Key findings / conclusions: Net reduction in greenhouse gas emissions
+
+Questions and Comments
+[H] asked about target audience and comparison with other drugs.
+[D] replied focus on public payers and no current comparable data.
+
+Decision: ✅ Endorsed (Slide-sourced)
+
+ ---
+
+Indirect Treatment Comparison (ITC) of Oral semaglutide 25mg with s.c. injectable semaglutide 2.4mg
+
+Presenter(s): ICSM
+Source: Slide-sourced
+
+Who / What / Actions
+
+WhoWhatActionsICSMPresented indirect treatment comparisonNone statedAllReview / decisionNot stated
+
+Abstract / Manuscript
+Target congress / journal: Obesity Week / Journal of Medical Decision Making
+Submission date / deadline: 2 July 2025
+
+Presentation Summary
+Aim / Objective: Compare efficacy of oral vs subcutaneous semaglutide
+Design / Data sources: OASIS-4 and STEP 1 trials
+Key findings / conclusions: Equivalence in efficacy demonstrated
+
+Questions and Comments
+[H] suggested additional modeling for exposure.
+[I] agreed to consider inclusion of modeling data.
+
+Decision: ✅ Endorsed (Slide-sourced)
+
+ ---
+
+Relationships between body mass indices and surgical replacements of knee and hip joints
+
+Presenter(s): TMYU
+Source: Slide-sourced
+
+Who / What / Actions
+
+WhoWhatActionsTMYUPresented correlation between BMI and joint replacementNone statedAllReview / decisionNot stated
+
+Abstract / Manuscript
+Target congress / journal: Obesity Week 2025
+Submission date / deadline: July 2025
+
+Presentation Summary
+Aim / Objective: Investigate association between obesity and surgeries
+Design / Data sources: Retrospective study using AEMR PPlus
+Key findings / conclusions: Strong association between increased BMI and surgery risk
+
+Questions and Comments
+No questions were raised.
+
+Decision: ✅ Endorsed (Slide-sourced)
+
+ ---
+
+Impact of Wegovy on household shopping, lifestyle and behavioural metrics in US; Impact of Wegovy on food noise and mental wellbeing in US
+
+Presenter(s): TMYU
+Source: Transcript-sourced
+
+Who / What / Actions
+
+WhoWhatActionsTMYUPresented consumer behavior data related to WegovyClarify if this is market researchAllReview / decisionPending clarification
+
+Abstract / Manuscript
+Target congress / journal: Obesity Week 2025
+Submission date / deadline: July 2025
+
+Presentation Summary
+Aim / Objective: Assess impact of Wegovy on consumer behavior
+Design / Data sources: Data from Numerator, a tech company
+Key findings / conclusions: Pending further clarification
+
+Questions and Comments
+[B] expressed concerns regarding scientific value and market research status.
+[A] emphasized adherence to publication requirements.
+
+Decision: ❌ Not endorsed (pending further clarification)
+
+ ---
+
+Real world cardiovascular and gastro-intestinal benefit of Wegovy compared to Zepbound in US
+
+Presenter(s): TMYU
+Source: Transcript-sourced
+
+Who / What / Actions
+
+WhoWhatActionsTMYUPresented comparison of Wegovy and ZepboundConduct feasibility assessmentAllReview / decisionPending data analysis
+
+Abstract / Manuscript
+Target congress / journal: Obesity Week 2025
+Submission date / deadline: July 2025
+
+Presentation Summary
+Aim / Objective: Compare cardiovascular and gastrointestinal benefits
+Design / Data sources: AMR PPlus database
+Key findings / conclusions: Pending further data analysis
+
+Questions and Comments
+[E] questioned the additional value of the CV analysis.
+[A] highlighted the risk if data is not favorable.
+
+Decision: ⚠️ Deferred (pending data analysis)
+
+ ---
+
+Any Other Business
+
+
+
+
+
+No updates.
+
+ ---
+
+Next Steps
+
+
+
+
+
+Task: Clarify market research status of Wegovy proposals — Responsible: TMYU — Due: Next meeting
+
+Compliance note:
+All proposals reviewed per scientific/clinical need in line with GPP 2022 and Novo Nordisk publication policy. Commercial interest was not a deciding factor.

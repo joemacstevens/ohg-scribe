@@ -6,11 +6,15 @@
   import FileQueue from "$lib/components/FileQueue.svelte";
   import OptionsPanel from "$lib/components/OptionsPanel.svelte";
   import SettingsModal from "$lib/components/SettingsModal.svelte";
-  import HistoryPanel from "$lib/components/HistoryPanel.svelte";
+  // Removed HistoryPanel import
   import Toast from "$lib/components/Toast.svelte";
   import SpeakerControls from "$lib/components/SpeakerControls.svelte";
+  import Sidebar from "$lib/components/Sidebar.svelte";
+  import Workspace from "$lib/components/workspace/Workspace.svelte";
+
   import { queueStore } from "$lib/stores/queue";
   import { optionsStore } from "$lib/stores/options";
+  import { workspaceStore } from "$lib/stores/workspace";
   import type { FileJob, TranscriptionOptions } from "$lib/types";
   import {
     getApiKey,
@@ -32,7 +36,8 @@
   import { openPath } from "@tauri-apps/plugin-opener";
 
   let settingsOpen = $state(false);
-  let historyOpen = $state(false);
+  // Removed historyOpen state
+
   let apiKey = $state("");
   let openaiKey = $state("");
   let jobs: FileJob[] = $state([]);
@@ -80,6 +85,11 @@
   });
 
   function handleFilesDropped(files: { filename: string; filepath: string }[]) {
+    // Ensure we are in "New" mode when files are dropped
+    if ($workspaceStore.viewMode === "workspace") {
+      workspaceStore.resetToNew();
+    }
+
     queueStore.addFiles(files);
     showToast(
       `Added ${files.length} file${files.length > 1 ? "s" : ""} to queue`,
@@ -241,7 +251,10 @@
         console.log("Saved to history:", historyEntry.id);
 
         // Store historyId in job so View button can navigate
-        queueStore.updateJob(jobId, { historyId: historyEntry.id });
+        queueStore.updateJob(jobId, {
+          historyId: historyEntry.id,
+          transcriptResult: transcriptResult, // Attach for Workspace access
+        } as any);
       } catch (historyError) {
         console.warn("Failed to save to history:", historyError);
       }
@@ -332,97 +345,105 @@
   }
 
   function handleViewTranscript(job: FileJob) {
-    if (job.historyId) {
-      goto(`/transcript/${job.historyId}`);
+    if (job.status === "complete" && job.outputPath) {
+      if ((job as any).transcriptResult) {
+        workspaceStore.openWorkspace(
+          (job as any).transcriptResult,
+          job.id,
+          job.filename,
+        );
+      } else {
+        showToast(
+          "Please re-process file to open in Workspace (Persistence pending)",
+          "info",
+        );
+      }
     } else {
       showToast("Transcript not available", "error");
     }
   }
 
   let hasJobs = $derived(jobs.length > 0);
+
+  function handleNewTranscription() {
+    workspaceStore.resetToNew();
+  }
 </script>
 
-<main class="app">
-  <header class="header">
-    <div class="logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 32 32" fill="none">
-          <circle
-            cx="16"
-            cy="16"
-            r="10"
-            fill="none"
-            stroke="white"
-            stroke-width="1.5"
-          />
-          <path
-            d="M11 16 V16 M13 13 V19 M16 10 V22 M19 13 V19 M21 15 V17"
-            stroke="white"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </svg>
+<main class="app-layout">
+  <Sidebar onNew={handleNewTranscription} />
+
+  <div class="main-content">
+    {#if $workspaceStore.viewMode === "workspace"}
+      <Workspace />
+    {:else}
+      <!-- Original Content (New Transcription Queue) -->
+      <div class="transcription-flow">
+        <header class="header">
+          <div class="logo">
+            <div class="logo-icon">
+              <svg viewBox="0 0 32 32" fill="none">
+                <circle
+                  cx="16"
+                  cy="16"
+                  r="10"
+                  fill="none"
+                  stroke="white"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M11 16 V16 M13 13 V19 M16 10 V22 M19 13 V19 M21 15 V17"
+                  stroke="white"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
+            <h1 class="logo-text">
+              <span class="logo-ohg">OHG</span><span class="logo-scribe"
+                >Scribe</span
+              >
+            </h1>
+          </div>
+          <div class="header-actions">
+            <button
+              class="header-btn"
+              onclick={() => (settingsOpen = true)}
+              aria-label="Settings"
+              title="Settings"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="content-body">
+          <SpeakerControls />
+          <DropZone onFilesDropped={handleFilesDropped} compact={hasJobs} />
+          {#if hasJobs}
+            <FileQueue
+              {jobs}
+              onOpen={handleOpenFile}
+              onRetry={handleRetry}
+              onViewTranscript={handleViewTranscript}
+            />
+          {/if}
+          <OptionsPanel openaiApiKey={openaiKey} />
+        </div>
       </div>
-      <h1 class="logo-text">
-        <span class="logo-ohg">OHG</span><span class="logo-scribe">Scribe</span>
-      </h1>
-    </div>
-    <div class="header-actions">
-      <button
-        class="header-btn"
-        onclick={() => (historyOpen = true)}
-        aria-label="History"
-        title="Transcription History"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
-      <button
-        class="header-btn"
-        onclick={() => (settingsOpen = true)}
-        aria-label="Settings"
-        title="Settings"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-          />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      </button>
-    </div>
-  </header>
-
-  <div class="content">
-    <SpeakerControls />
-
-    <DropZone onFilesDropped={handleFilesDropped} compact={hasJobs} />
-
-    {#if hasJobs}
-      <FileQueue
-        {jobs}
-        onOpen={handleOpenFile}
-        onRetry={handleRetry}
-        onViewTranscript={handleViewTranscript}
-      />
     {/if}
-
-    <OptionsPanel openaiApiKey={openaiKey} />
   </div>
 
   <SettingsModal
@@ -432,8 +453,6 @@
     currentAssemblyAIKey={apiKey}
     currentOpenAIKey={openaiKey}
   />
-
-  <HistoryPanel isOpen={historyOpen} onClose={() => (historyOpen = false)} />
 
   {#each toasts as toast (toast.id)}
     <Toast
@@ -496,20 +515,33 @@
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       sans-serif;
-    background: linear-gradient(
-      180deg,
-      var(--lavender-light) 0%,
-      var(--white) 100%
-    );
     color: var(--navy);
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    overflow: hidden; /* App feels like native app */
   }
 
-  .app {
-    min-height: 100vh;
+  .app-layout {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .main-content {
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-primary);
+    position: relative;
+  }
+
+  /* Transcription Flow (Queue) Layout */
+  .transcription-flow {
+    height: 100%;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
   }
 
   .header {
@@ -584,13 +616,13 @@
     color: var(--navy);
   }
 
-  .content {
+  .content-body {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 24px;
     padding: 24px;
-    max-width: 600px;
+    max-width: 800px; /* SLightly wider now that we have space */
     width: 100%;
     margin: 0 auto;
   }

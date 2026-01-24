@@ -19,7 +19,17 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.9.0",
-    "docx": "^9.5.1"
+    "@tiptap/core": "^3.16.0",
+    "@tiptap/extension-bubble-menu": "^3.16.0",
+    "@tiptap/extension-placeholder": "^3.16.0",
+    "@tiptap/extension-table": "^3.17.0",
+    "@tiptap/extension-table-cell": "^3.17.0",
+    "@tiptap/extension-table-header": "^3.17.0",
+    "@tiptap/extension-table-row": "^3.17.0",
+    "@tiptap/starter-kit": "^3.16.0",
+    "@types/papaparse": "^5.5.2",
+    "docx": "^9.5.1",
+    "papaparse": "^5.5.3"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

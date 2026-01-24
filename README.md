@@ -93,6 +93,87 @@ graph LR
     B --> H[Store Audio for Playback]
 ```
 
+## Workspace Architecture
+
+```mermaid
+graph TD
+    classDef shell fill:#f9fafb,stroke:#6b7280,stroke-width:2px;
+    classDef store fill:#e0e7ff,stroke:#4338ca,stroke-width:2px;
+    classDef component fill:#ffffff,stroke:#e5e7eb,stroke-width:1px;
+    classDef active fill:#dbeafe,stroke:#2563eb,stroke-width:2px;
+    classDef service fill:#f3f4f6,stroke:#374151,stroke-dasharray: 5 5;
+
+    %% --- 1. Global Shell ---
+    subgraph App_Shell [App Shell / +layout.svelte]
+        Sidebar[Sidebar <br/> History & Navigation]:::shell
+        ContentArea[Main Content Area]:::shell
+    end
+
+    %% --- 2. State Management ---
+    WorkspaceStore{{Workspace Store <br/> workspace.ts}}:::store
+    Sidebar -->|Select Job / New| WorkspaceStore
+    WorkspaceStore -->|updates viewMode| ContentArea
+
+    %% --- 3. Dynamic View Switching ---
+    subgraph Views [View Switching Logic]
+        direction TB
+        DropZone[DropZone <br/> File Intake]:::component
+        Compact[Compact View <br/> Legacy/Quick]:::component
+        Workspace[Workspace <br/> Full 3-Panel Layout]:::active
+    end
+
+    ContentArea --> DropZone
+    ContentArea --> Compact
+    ContentArea --> Workspace
+
+    %% --- 4. The Meeting Minutes Workspace ---
+    subgraph Meeting_Minutes_Workspace [The Workspace Component]
+        direction LR
+        
+        %% Column 1
+        Nav[Transcript Navigator <br/> Left Panel]:::component
+        
+        %% Column 2
+        subgraph Viewer_Context [Center: Transcript Viewer]
+            Viewer[Transcript List <br/> Virtualized Segments]:::component
+            Audio[Audio Player <br/> Sticky Footer]:::component
+            Viewer <-->|Sync Time| Audio
+        end
+
+        %% Column 3
+        subgraph SlideOut_Panel [Right: Minutes Interface]
+            Setup[Minutes Setup <br/> Template & Persona Picker]:::component
+            Editor[Minutes Editor <br/> Tiptap / AI Output]:::component
+        end
+    end
+
+    Workspace --> Nav
+    Workspace --> Viewer_Context
+    Workspace --> SlideOut_Panel
+
+    %% --- 5. Data Flow & Services ---
+    subgraph Services [Services & persistence]
+        HistoryService[(History Service <br/> JSON / FS)]:::service
+        AIService(AI Service <br/> OpenAI / AssemblyAI):::service
+        AudioAssets(Local Audio Assets):::service
+    end
+
+    %% Connections
+    Nav -->|Scroll to Speaker| Viewer
+    Viewer -->|Highlight Attribution| Editor
+    Editor -->|Click Source| Viewer
+    
+    WorkspaceStore <-->|Load/Save| HistoryService
+    Setup -->|Generate Request| AIService
+    AIService -->|Stream Content| Editor
+    Audio -->|Load File| AudioAssets
+
+    %% State Bindings
+    WorkspaceStore -.->|currentTranscript| Viewer
+    WorkspaceStore -.->|minutesContent| Editor
+    WorkspaceStore -.->|activeAttributionIds| Viewer
+```
+
 ---
 
 ## Setup

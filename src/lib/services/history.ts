@@ -21,6 +21,7 @@ export interface HistoryEntry {
         includedSentiment: boolean;
     };
     aiInferredSpeakers?: string[]; // Speakers names that were AI-inferred (not user-confirmed)
+    minutes?: string; // HTML content of generated minutes
 }
 
 export interface HistorySummary {
