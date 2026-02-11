@@ -47,6 +47,7 @@ export interface HistoryEntry {
     aiInferredSpeakers?: string[]; // Speakers names that were AI-inferred (not user-confirmed)
     minutes?: string; // HTML content of latest minutes (for quick access)
     minutesHistory?: MinutesGeneration[]; // Array of all generations
+    chatHistory?: { id: string; role: 'user' | 'assistant'; content: string; timestamp: string }[]; // Chat conversation
 }
 
 export interface HistorySummary {

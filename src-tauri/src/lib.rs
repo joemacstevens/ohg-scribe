@@ -1,6 +1,6 @@
 mod commands;
 
-use commands::anthropic::{generate_with_claude, refine_with_claude};
+use commands::anthropic::{generate_with_claude, refine_with_claude, chat_with_claude};
 use commands::audio::{store_audio_file, delete_audio_file};
 use commands::convert::{cleanup_temp_dir, convert_to_audio};
 use commands::history::{save_history_entry, get_history_list, get_history_entry, delete_history_entry};
@@ -48,6 +48,7 @@ pub fn run() {
             // Anthropic Claude
             generate_with_claude,
             refine_with_claude,
+            chat_with_claude,
             // AssemblyAI
             upload_audio,
             submit_transcription,
