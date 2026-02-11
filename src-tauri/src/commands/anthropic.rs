@@ -149,6 +149,102 @@ pub async fn generate_with_claude(
     Ok(text)
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
+/// Chat with Claude using multi-turn conversation history
+#[tauri::command]
+pub async fn chat_with_claude(
+    api_key: String,
+    system_prompt: String,
+    messages: Vec<ChatMessage>,
+    model: Option<String>,
+    max_tokens: Option<u32>,
+) -> Result<String, AnthropicError> {
+    info!("Chat with Claude ({} messages)...", messages.len());
+
+    if api_key.is_empty() {
+        return Err(AnthropicError::NoApiKey);
+    }
+
+    let model_name = model.unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+    let tokens = max_tokens.unwrap_or(4000);
+
+    let client = reqwest::Client::new();
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    headers.insert("x-api-key", HeaderValue::from_str(&api_key).map_err(|e| AnthropicError::RequestFailed(e.to_string()))?);
+    headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
+
+    // Convert ChatMessage vec to AnthropicMessage vec
+    let anthropic_messages: Vec<AnthropicMessage> = messages
+        .into_iter()
+        .map(|m| AnthropicMessage {
+            role: m.role,
+            content: m.content,
+        })
+        .collect();
+
+    let request_body = AnthropicRequest {
+        model: model_name.clone(),
+        max_tokens: tokens,
+        system: system_prompt,
+        messages: anthropic_messages,
+    };
+
+    info!("Sending chat request to Anthropic API (model: {})", model_name);
+
+    let response = client
+        .post("https://api.anthropic.com/v1/messages")
+        .headers(headers)
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| AnthropicError::RequestFailed(e.to_string()))?;
+
+    let status = response.status();
+
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        error!("Anthropic API error ({}): {}", status, error_text);
+
+        if let Ok(error_response) = serde_json::from_str::<AnthropicErrorResponse>(&error_text) {
+            return Err(AnthropicError::ApiError(error_response.error.message));
+        }
+
+        return Err(AnthropicError::ApiError(format!("Status {}: {}", status, error_text)));
+    }
+
+    let api_response: AnthropicResponse = response
+        .json()
+        .await
+        .map_err(|e| AnthropicError::RequestFailed(format!("Failed to parse response: {}", e)))?;
+
+    let text = api_response
+        .content
+        .iter()
+        .filter_map(|block| {
+            if block.content_type == "text" {
+                block.text.clone()
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    if text.is_empty() {
+        return Err(AnthropicError::ApiError("No text content in response".to_string()));
+    }
+
+    info!("Chat response: {} characters", text.len());
+    Ok(text)
+}
+
 /// Refine text using Claude API (faster model)
 #[tauri::command]
 pub async fn refine_with_claude(

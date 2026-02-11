@@ -11,6 +11,7 @@
     import TranscriptViewer from "./TranscriptViewer.svelte";
     import MinutesSetup from "./setup/MinutesSetup.svelte";
     import MinutesEditor from "./editor/MinutesEditor.svelte";
+    import TranscriptChat from "./TranscriptChat.svelte";
 
     // Temporary placeholders until we build them
     let TranscriptNavigatorComponent = TranscriptNavigator;
@@ -21,6 +22,13 @@
     let isExportMenuOpen = $state(false);
     let isExporting = $state(false);
     let showMeetingMinutes = $state(false);
+    let showTranscriptChat = $state(false);
+
+    // Active panel type for mutually exclusive behavior
+    type ActivePanel = "none" | "minutes" | "chat";
+    let activePanel = $derived<ActivePanel>(
+        showMeetingMinutes ? "minutes" : showTranscriptChat ? "chat" : "none",
+    );
 
     // Resizable Panel Logic
     let panelWidth = $state(Math.min(window.innerWidth * 0.5, 900)); // Start expanded
@@ -149,7 +157,13 @@
     }
 
     function openMeetingMinutes() {
+        showTranscriptChat = false;
         showMeetingMinutes = true;
+    }
+
+    function openTranscriptChat() {
+        showMeetingMinutes = false;
+        showTranscriptChat = true;
     }
 
     // View Navigation Logic
@@ -190,7 +204,11 @@
 
             <div class="header-divider"></div>
 
-            <button class="btn-outline" onclick={openMeetingMinutes}>
+            <button
+                class="btn-outline"
+                class:btn-outline-active={activePanel === "minutes"}
+                onclick={openMeetingMinutes}
+            >
                 <svg
                     width="18"
                     height="18"
@@ -210,6 +228,28 @@
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
                 Meeting Minutes
+            </button>
+
+            <button
+                class="btn-outline"
+                class:btn-outline-active={activePanel === "chat"}
+                onclick={openTranscriptChat}
+            >
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path
+                        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                    ></path>
+                </svg>
+                Ask Transcript
             </button>
         </div>
 
@@ -305,7 +345,7 @@
 
     <div
         class="transcript-layout"
-        class:panel-open={showMeetingMinutes}
+        class:panel-open={showMeetingMinutes || showTranscriptChat}
         style="--panel-width: {panelWidth}px"
     >
         <main class="transcript-main">
@@ -350,6 +390,38 @@
                                 (minutesViewMode = "editor")}
                         />
                     {/if}
+                </div>
+            </aside>
+        {/if}
+
+        {#if showTranscriptChat}
+            <aside
+                class="meeting-minutes-panel"
+                style="width: {panelWidth}px"
+                transition:fly={{ x: 300, duration: 250 }}
+            >
+                <div class="resize-handle" onmousedown={startResize}></div>
+                <div class="panel-header">
+                    <h3>💬 Ask the Transcript</h3>
+                    <button
+                        class="btn-icon"
+                        onclick={() => (showTranscriptChat = false)}
+                    >
+                        <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <TranscriptChat />
                 </div>
             </aside>
         {/if}
@@ -438,6 +510,12 @@
     .btn-outline:hover {
         background: var(--gray-50);
         border-color: var(--gray-400);
+    }
+
+    .btn-outline-active {
+        background: var(--lavender-light, #f5f0ff);
+        border-color: var(--purple, #7c3aed);
+        color: var(--purple, #7c3aed);
     }
 
     .btn-primary {
