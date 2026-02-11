@@ -10,6 +10,11 @@
     import { MEDICAL_WRITER } from "$lib/data/personas";
     import SEMAGLUTIDE_LEXICON from "$lib/data/lexicons/semaglutide.json";
     import { generateMinutes } from "$lib/services/ai";
+    import {
+        getHistoryEntry,
+        updateHistoryEntry,
+        type MinutesGeneration,
+    } from "$lib/services/history";
     import { fade, fly } from "svelte/transition";
     import StyleSelector from "./StyleSelector.svelte";
     import LexiconSelector from "./LexiconSelector.svelte";
@@ -17,15 +22,18 @@
     import { open } from "@tauri-apps/plugin-dialog";
 
     let selectedTemplate = $state<Template | null>(null);
-    let selectedStyle = $state<Style>(DEFAULT_STYLES[1]); // Novo Nordisk as default
+    let selectedStyle = $state<Style>(DEFAULT_STYLES[0]); // Novo Nordisk as default
     let selectedLexicon = $state<Lexicon>(SEMAGLUTIDE_LEXICON as Lexicon);
     let isGenerating = $state(false);
     let error = $state<string | null>(null);
     let slideContext = $state("");
+    let customInstructions = $state(""); // Prompt injector
+    let includeCitations = $state(true); // Enable source citations by default
 
     // File Upload State
     let isExtracting = $state(false);
     let isDragOver = $state(false);
+    let hasImportedContext = $state(false); // Track if file was imported
 
     async function handleGenerate() {
         if (!selectedTemplate || !$workspaceStore.currentTranscript) return;
@@ -34,20 +42,54 @@
         error = null;
 
         try {
-            const minutesHtml = await generateMinutes({
+            const result = await generateMinutes({
                 transcript: $workspaceStore.currentTranscript,
                 template: selectedTemplate,
                 persona: MEDICAL_WRITER, // Fixed base agent
                 style: selectedStyle,
                 lexicon: selectedLexicon,
                 slideContext,
+                customInstructions: customInstructions.trim() || undefined,
+                includeCitations,
             });
 
-            // First update content
-            workspaceStore.updateMinutes(minutesHtml);
+            const minutesHtml = result.content;
 
-            // Then flip the flag to show the editor
+            // Update store
+            workspaceStore.updateMinutes(minutesHtml);
             workspaceStore.setMinutesGenerated(true);
+
+            // Store citations in workspace store for editor to use
+            if (result.citations) {
+                workspaceStore.setCitations(result.citations);
+            }
+
+            // Persist to history
+            const jobId = $workspaceStore.currentJobId;
+            if (jobId) {
+                const entry = await getHistoryEntry(jobId);
+                if (entry) {
+                    // Create new generation record with citations
+                    const generation: MinutesGeneration = {
+                        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        generatedAt: new Date().toISOString(),
+                        content: minutesHtml,
+                        templateName: selectedTemplate.name,
+                        citations: result.citations,
+                    };
+
+                    // Add to history array (prepend for newest first)
+                    const history = entry.minutesHistory || [];
+                    entry.minutesHistory = [generation, ...history];
+                    entry.minutes = minutesHtml; // Latest always in minutes field
+
+                    await updateHistoryEntry(entry);
+                    console.log(
+                        "[MinutesSetup] Saved generation to history:",
+                        generation.id,
+                    );
+                }
+            }
         } catch (e) {
             console.error(e);
             error = e instanceof Error ? e.message : String(e);
@@ -77,16 +119,15 @@
     async function handleFileRead(path: string) {
         isExtracting = true;
         error = null;
+        hasImportedContext = false;
         try {
             const text = await invoke<string>("extract_document_text", {
                 path,
             });
             if (text) {
-                // Append with a separator if context already exists
-                const separator = slideContext
-                    ? "\n\n--- IMPORTED FILE ---\n"
-                    : "";
-                slideContext += separator + text;
+                // Store context but don't display it
+                slideContext = text;
+                hasImportedContext = true;
             }
         } catch (e) {
             console.error(e);
@@ -203,60 +244,91 @@
         <div class="field">
             <label class="section-label">Context Materials (Optional)</label>
             <p class="help-text">
-                Import slides or paste text. This content is prioritized over
-                the transcript for dates/titles/data.
+                Import slides for dates/titles/data. Content is used to inform
+                generation.
             </p>
 
-            <!-- Upload/Context Area -->
-            <div class="context-container">
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div
-                    class="upload-zone"
-                    class:drag-over={isDragOver}
-                    class:processing={isExtracting}
-                    onclick={handleBrowse}
-                    ondragover={(e) => {
-                        e.preventDefault();
-                        isDragOver = true;
-                    }}
-                    ondragleave={() => (isDragOver = false)}
-                    ondrop={handleDrop}
-                >
-                    {#if isExtracting}
-                        <div class="spinner"></div>
-                        <span>Extracting text...</span>
-                    {:else}
-                        <div class="icon">
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path
-                                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                                ></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
+            <!-- Simplified Upload Area -->
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+                class="upload-zone"
+                class:drag-over={isDragOver}
+                class:processing={isExtracting}
+                class:imported={hasImportedContext}
+                onclick={handleBrowse}
+                ondragover={(e) => {
+                    e.preventDefault();
+                    isDragOver = true;
+                }}
+                ondragleave={() => (isDragOver = false)}
+                ondrop={handleDrop}
+            >
+                {#if isExtracting}
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
                         </div>
-                        <div class="upload-text">Import PDF / PPTX</div>
-                    {/if}
-                </div>
-
-                <div class="divider">
-                    <span>OR PASTE TEXT</span>
-                </div>
-
-                <textarea
-                    class="context-input"
-                    bind:value={slideContext}
-                    placeholder="Results from imported file will appear here. &#10;You can also paste Slide/OCR text directly..."
-                ></textarea>
+                        <span class="progress-text">Importing document...</span>
+                    </div>
+                {:else if hasImportedContext}
+                    <div class="success-indicator">
+                        <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>Context imported</span>
+                    </div>
+                {:else}
+                    <div class="icon">
+                        <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                            ></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div class="upload-text">Import PDF / PPTX</div>
+                {/if}
             </div>
+        </div>
+
+        <div class="field">
+            <label class="section-label">Add instructions (optional)</label>
+            <p class="help-text">
+                Custom instructions to guide the minutes generation.
+            </p>
+            <textarea
+                class="context-input"
+                bind:value={customInstructions}
+                placeholder="e.g., Focus on action items, Use bullet points for decisions..."
+            ></textarea>
+        </div>
+
+        <div class="field toggle-field">
+            <label class="toggle-label">
+                <input type="checkbox" bind:checked={includeCitations} />
+                <span class="toggle-text">
+                    <strong>Enable source citations</strong>
+                    <span class="toggle-help"
+                        >Click paragraphs to verify source in transcript</span
+                    >
+                </span>
+            </label>
         </div>
 
         <div class="actions">
@@ -265,11 +337,10 @@
             {/if}
 
             <div class="action-row">
-                {#if $workspaceStore.isMinutesGenerated}
-                    <button class="cancel-btn" onclick={onGoToEditor}>
-                        Cancel
+                {#if $workspaceStore.minutesContent}
+                    <button class="back-btn" onclick={onGoToEditor}>
+                        ← Back to Editor
                     </button>
-                    <!-- "Generate" will overwrite -->
                 {/if}
 
                 <button
@@ -507,7 +578,7 @@
         gap: 12px;
     }
 
-    .cancel-btn {
+    .back-btn {
         background: white;
         border: 1px solid var(--gray-300);
         color: var(--text-secondary);
@@ -518,7 +589,7 @@
         transition: all 0.2s;
     }
 
-    .cancel-btn:hover {
+    .back-btn:hover {
         background: var(--gray-50);
         color: var(--text-primary);
         border-color: var(--gray-400);
@@ -528,6 +599,40 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
+    }
+
+    .toggle-field {
+        margin-top: 8px;
+    }
+
+    .toggle-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        cursor: pointer;
+    }
+
+    .toggle-label input[type="checkbox"] {
+        margin-top: 3px;
+        width: 16px;
+        height: 16px;
+        accent-color: var(--magenta);
+    }
+
+    .toggle-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .toggle-text strong {
+        font-size: 13px;
+        color: var(--text-primary);
+    }
+
+    .toggle-help {
+        font-size: 12px;
+        color: var(--gray-500);
     }
 
     .help-text {
@@ -624,5 +729,78 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    /* Progress Bar */
+    .progress-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: var(--gray-200);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            var(--magenta) 0%,
+            var(--purple) 100%
+        );
+        border-radius: 3px;
+        animation: progress-indeterminate 1.5s ease-in-out infinite;
+    }
+
+    @keyframes progress-indeterminate {
+        0% {
+            width: 0%;
+            margin-left: 0%;
+        }
+        50% {
+            width: 60%;
+            margin-left: 20%;
+        }
+        100% {
+            width: 0%;
+            margin-left: 100%;
+        }
+    }
+
+    .progress-text {
+        font-size: 12px;
+        color: var(--gray-500);
+    }
+
+    /* Success Indicator */
+    .success-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--success-color);
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    .success-indicator svg {
+        stroke: var(--success-color);
+    }
+
+    /* Imported state */
+    .upload-zone.imported {
+        border-color: var(--success-color);
+        border-style: solid;
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .upload-zone.imported:hover {
+        background: rgba(16, 185, 129, 0.1);
     }
 </style>

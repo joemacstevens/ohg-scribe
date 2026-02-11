@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { getHistoryEntry, updateHistoryEntry } from '$lib/services/history';
+import { getHistoryEntry, updateHistoryEntry, type ParagraphCitation } from '$lib/services/history';
 import type { TranscriptResult } from '$lib/types';
 
 export type ViewMode = 'compact' | 'workspace';
@@ -15,6 +15,7 @@ export interface WorkspaceState {
     isLoading: boolean;
     activeAttributionIds?: number[];
     audioPath: string | null;
+    currentCitations: ParagraphCitation[] | null;
 }
 
 function createWorkspaceStore() {
@@ -28,7 +29,8 @@ function createWorkspaceStore() {
         minutesContent: null,
         isLoading: false,
         activeAttributionIds: undefined,
-        audioPath: null
+        audioPath: null,
+        currentCitations: null
     });
 
     return {
@@ -88,6 +90,10 @@ function createWorkspaceStore() {
             ...s,
             minutesContent: content
         })),
+        setCitations: (citations: ParagraphCitation[] | null) => update(s => ({
+            ...s,
+            currentCitations: citations
+        })),
         scrollToSpeaker: (speakerKey: string) => update(s => ({
             ...s,
             activeSpeakerId: speakerKey
@@ -130,7 +136,8 @@ function createWorkspaceStore() {
             minutesContent: null,
             isLoading: false,
             activeAttributionIds: undefined,
-            audioPath: null
+            audioPath: null,
+            currentCitations: null
         })
     };
 }

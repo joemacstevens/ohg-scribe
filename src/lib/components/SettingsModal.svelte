@@ -12,9 +12,14 @@
   interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (assemblyaiKey: string, openaiKey: string) => void;
+    onSave: (
+      assemblyaiKey: string,
+      openaiKey: string,
+      anthropicKey: string,
+    ) => void;
     currentAssemblyAIKey?: string;
     currentOpenAIKey?: string;
+    currentAnthropicKey?: string;
   }
 
   let {
@@ -23,12 +28,15 @@
     onSave,
     currentAssemblyAIKey = "",
     currentOpenAIKey = "",
+    currentAnthropicKey = "",
   }: Props = $props();
 
   let assemblyaiKey = $state("");
   let openaiKey = $state("");
+  let anthropicKey = $state("");
   let showKey = $state(false);
   let showOpenAIKey = $state(false);
+  let showAnthropicKey = $state(false);
 
   // Update checker state
   let currentVersion = $state("");
@@ -46,12 +54,13 @@
     if (isOpen) {
       assemblyaiKey = currentAssemblyAIKey;
       openaiKey = currentOpenAIKey;
+      anthropicKey = currentAnthropicKey;
     }
   });
 
   function handleSave() {
     if (assemblyaiKey.trim()) {
-      onSave(assemblyaiKey.trim(), openaiKey.trim());
+      onSave(assemblyaiKey.trim(), openaiKey.trim(), anthropicKey.trim());
       onClose();
     }
   }
@@ -178,6 +187,37 @@
               href="https://platform.openai.com/api-keys"
               target="_blank"
               rel="noopener">platform.openai.com</a
+            >
+          </p>
+        </div>
+
+        <div class="form-group" style="margin-top: 20px;">
+          <label for="anthropic-key"
+            >Anthropic API Key <span class="optional"
+              >(for Meeting Minutes)</span
+            ></label
+          >
+          <div class="input-wrapper">
+            <input
+              type={showAnthropicKey ? "text" : "password"}
+              id="anthropic-key"
+              bind:value={anthropicKey}
+              placeholder="sk-ant-..."
+            />
+            <button
+              class="toggle-visibility"
+              onclick={() => (showAnthropicKey = !showAnthropicKey)}
+              type="button"
+              aria-label={showAnthropicKey ? "Hide API key" : "Show API key"}
+            >
+              {showAnthropicKey ? "🙈" : "👁️"}
+            </button>
+          </div>
+          <p class="help-text">
+            Powers AI meeting minutes generation using Claude. Get your key from <a
+              href="https://console.anthropic.com/settings/keys"
+              target="_blank"
+              rel="noopener">console.anthropic.com</a
             >
           </p>
         </div>

@@ -72,6 +72,15 @@ export async function setOpenAIKey(apiKey: string): Promise<void> {
     return await invoke('set_openai_key', { apiKey });
 }
 
+// Anthropic key commands
+export async function getAnthropicKey(): Promise<string | null> {
+    return await invoke<string | null>('get_anthropic_key');
+}
+
+export async function setAnthropicKey(apiKey: string): Promise<void> {
+    return await invoke('set_anthropic_key', { apiKey });
+}
+
 // FFmpeg conversion
 export async function convertToAudio(inputPath: string): Promise<ConversionResult> {
     return await invoke<ConversionResult>('convert_to_audio', { inputPath });

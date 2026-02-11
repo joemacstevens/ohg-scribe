@@ -5,6 +5,7 @@
         generateMinutesDocument,
         saveDocument,
     } from "$lib/services/docx-export";
+    import { generateMinutesPDF, savePDF } from "$lib/services/pdf-export";
     import { fade, fly } from "svelte/transition";
     import TranscriptNavigator from "./TranscriptNavigator.svelte";
     import TranscriptViewer from "./TranscriptViewer.svelte";
@@ -22,7 +23,7 @@
     let showMeetingMinutes = $state(false);
 
     // Resizable Panel Logic
-    let panelWidth = $state(400); // Default width
+    let panelWidth = $state(Math.min(window.innerWidth * 0.5, 900)); // Start expanded
     let isResizing = $state(false);
 
     function startResize(e: MouseEvent) {
@@ -42,7 +43,7 @@
         const newWidth = window.innerWidth - e.clientX;
 
         // Constraints
-        if (newWidth >= 300 && newWidth <= 800) {
+        if (newWidth >= 300 && newWidth <= 900) {
             panelWidth = newWidth;
         }
     }
@@ -123,10 +124,28 @@
         }
     }
 
-    function identifySpeakers() {
-        // TODO: Implement identify speakers logic
-        console.log("Identify speakers clicked");
-        alert("Speaker identification feature is coming soon.");
+    async function handleExportMinutesPDF() {
+        if (!$workspaceStore.minutesContent || !$workspaceStore.currentJobId)
+            return;
+        isExportMenuOpen = false;
+        isExporting = true;
+        try {
+            const buffer = await generateMinutesPDF(
+                $workspaceStore.minutesContent,
+                $workspaceStore.currentJobId.split("/").pop() || "Minutes",
+            );
+            const path = $workspaceStore.currentJobId.replace(
+                /\.[^/.]+$/,
+                "_minutes.pdf",
+            );
+            await savePDF(buffer, path);
+            alert("PDF exported successfully to " + path);
+        } catch (e) {
+            console.error(e);
+            alert("PDF export failed: " + String(e));
+        } finally {
+            isExporting = false;
+        }
     }
 
     function openMeetingMinutes() {
@@ -134,12 +153,18 @@
     }
 
     // View Navigation Logic
+    // Show editor if there's actual content, otherwise show setup
     let minutesViewMode = $state<"setup" | "editor">("setup");
 
     $effect.root(() => {
-        minutesViewMode = $workspaceStore.isMinutesGenerated
-            ? "editor"
-            : "setup";
+        // Check for actual content, not just the flag
+        const hasContent =
+            !!$workspaceStore.minutesContent &&
+            $workspaceStore.minutesContent.trim().length > 0;
+        minutesViewMode =
+            hasContent && $workspaceStore.isMinutesGenerated
+                ? "editor"
+                : "setup";
     });
 </script>
 
@@ -164,25 +189,6 @@
             </button>
 
             <div class="header-divider"></div>
-
-            <button class="btn-outline" onclick={identifySpeakers}>
-                <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"
-                    ></path>
-                    <path d="M4 6v12a2 2 0 0 0 2 2h14v-4"></path>
-                    <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"></path>
-                </svg>
-                Identify Speakers
-            </button>
 
             <button class="btn-outline" onclick={openMeetingMinutes}>
                 <svg
@@ -242,11 +248,17 @@
 
                 {#if isExportMenuOpen}
                     <div class="export-dropdown">
-                        <button onclick={handleExportTranscript}>
+                        <button
+                            onclick={handleExportMinutes}
+                            disabled={!$workspaceStore.minutesContent}
+                        >
                             <span>📄</span> Export to Word
                         </button>
-                        <button onclick={openMeetingMinutes}>
-                            <span>📝</span> Create Meeting Minutes...
+                        <button
+                            onclick={handleExportMinutesPDF}
+                            disabled={!$workspaceStore.minutesContent}
+                        >
+                            <span>📕</span> Export to PDF
                         </button>
                     </div>
                 {/if}
