@@ -32,6 +32,7 @@ impl serde::Serialize for SettingsError {
 struct AppSettings {
     api_key: Option<String>,
     openai_key: Option<String>,
+    anthropic_key: Option<String>,
 }
 
 // Get the settings file path
@@ -153,5 +154,37 @@ pub async fn set_openai_key(app: AppHandle, api_key: String) -> Result<(), Setti
     save_settings(&app, &settings)?;
     
     info!("OpenAI API key saved successfully");
+    Ok(())
+}
+
+/// Get the stored Anthropic API key
+#[tauri::command]
+pub async fn get_anthropic_key(app: AppHandle) -> Result<Option<String>, SettingsError> {
+    info!("Loading Anthropic API key from settings...");
+    
+    let settings = load_settings(&app)?;
+    
+    match &settings.anthropic_key {
+        Some(key) => {
+            info!("Anthropic API key found (length: {})", key.len());
+            Ok(Some(key.clone()))
+        },
+        None => {
+            info!("No Anthropic API key found in settings");
+            Ok(None)
+        }
+    }
+}
+
+/// Store the Anthropic API key
+#[tauri::command]
+pub async fn set_anthropic_key(app: AppHandle, api_key: String) -> Result<(), SettingsError> {
+    info!("Saving Anthropic API key to settings (length: {})", api_key.len());
+    
+    let mut settings = load_settings(&app)?;
+    settings.anthropic_key = Some(api_key);
+    save_settings(&app, &settings)?;
+    
+    info!("Anthropic API key saved successfully");
     Ok(())
 }

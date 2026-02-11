@@ -1,6 +1,8 @@
 <script lang="ts">
     import { workspaceStore } from "$lib/stores/workspace";
     import { updateHistoryEntry, getHistoryEntry } from "$lib/services/history";
+    import { getApiKey } from "$lib/services/transcription";
+    import { invoke } from "@tauri-apps/api/core";
 
     let segments = $derived($workspaceStore.currentTranscript?.segments || []);
     let activeSpeakerId = $derived($workspaceStore.activeSpeakerId);
@@ -21,6 +23,11 @@
     // Editing State
     let editingSpeakerIndex = $state<number | null>(null);
     let editSpeakerName = $state("");
+
+    // AI Speaker Identification State
+    let identifying = $state(false);
+    let identifyError = $state<string | null>(null);
+    let aiInferredSpeakers = $state<string[]>([]);
 
     // Metadata
     let uniqueSpeakers = $derived(new Set(segments.map((s) => s.speaker)).size);
@@ -182,20 +189,112 @@
             }
         }
     }
+
+    // AI Speaker Identification using LeMUR
+    async function identifySpeakers() {
+        if (!$workspaceStore.currentTranscript || segments.length === 0) return;
+
+        identifying = true;
+        identifyError = null;
+
+        try {
+            // Get AssemblyAI API key
+            const apiKey = await getApiKey();
+            if (!apiKey) {
+                throw new Error(
+                    "AssemblyAI API key not found. Please set it in Settings.",
+                );
+            }
+
+            // Format transcript for LeMUR context
+            const transcriptText = segments
+                .map((s) => `Speaker ${s.speaker}:\n${s.text}`)
+                .join("\n\n");
+
+            // Get unique speaker labels
+            const uniqueSpeakerLabels = [
+                ...new Set(segments.map((s) => s.speaker)),
+            ];
+
+            console.log("Identifying speakers:", uniqueSpeakerLabels);
+
+            // Call Rust backend
+            const mapping = await invoke<Record<string, string>>(
+                "identify_speakers",
+                {
+                    transcriptText,
+                    speakerLabels: uniqueSpeakerLabels,
+                    apiKey,
+                },
+            );
+
+            console.log("Speaker mapping result:", mapping);
+
+            // Apply results to transcript
+            if (Object.keys(mapping).length > 0) {
+                const inferredNames = Object.values(mapping);
+                aiInferredSpeakers = inferredNames;
+
+                // Update all segments with the new speaker names
+                for (let i = 0; i < segments.length; i++) {
+                    const oldSpeaker = segments[i].speaker;
+                    const newSpeaker = mapping[oldSpeaker] || oldSpeaker;
+                    if (newSpeaker !== oldSpeaker) {
+                        workspaceStore.updateSegment(
+                            i,
+                            newSpeaker,
+                            segments[i].text,
+                        );
+                    }
+                }
+
+                // Persist changes
+                await persistChanges();
+            }
+        } catch (e) {
+            console.error("LeMUR Error:", e);
+            identifyError = e instanceof Error ? e.message : String(e);
+        } finally {
+            identifying = false;
+        }
+    }
 </script>
 
 <div class="viewer-layout">
     <div class="viewer-header">
-        <h1 class="transcript-title">
-            {$workspaceStore.currentFilename || "Transcript"}
-        </h1>
+        <div class="header-top">
+            <h1 class="transcript-title">
+                {$workspaceStore.currentFilename || "Transcript"}
+            </h1>
+            <button
+                class="identify-btn"
+                onclick={identifySpeakers}
+                disabled={identifying || segments.length === 0}
+                title="Use AI to identify speaker names from conversation"
+            >
+                {#if identifying}
+                    <span class="spinner-icon">⏳</span> Identifying...
+                {:else}
+                    🪄 Identify Speakers
+                {/if}
+            </button>
+        </div>
         <div class="transcript-meta">
             <span class="meta-item">📅 {formatDate(undefined)}</span>
             <span class="meta-separator">•</span>
             <span class="meta-item">👥 {uniqueSpeakers} speakers</span>
             <span class="meta-separator">•</span>
             <span class="meta-item">📝 {wordCount.toLocaleString()} words</span>
+            {#if aiInferredSpeakers.length > 0}
+                <span class="meta-separator">•</span>
+                <span class="meta-item ai-badge">✨ AI-identified</span>
+            {/if}
         </div>
+        {#if identifyError}
+            <div class="error-banner">
+                ⚠️ {identifyError}
+            </div>
+        {/if}
     </div>
 
     <div class="transcript-scrollable">
@@ -307,11 +406,58 @@
         flex-shrink: 0;
     }
 
+    .header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+
     .transcript-title {
         font-size: 24px;
         font-weight: 700;
         color: var(--navy);
-        margin: 0 0 8px 0;
+        margin: 0;
+    }
+
+    .identify-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--navy);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .identify-btn:hover:not(:disabled) {
+        background: var(--navy-light);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(26, 43, 74, 0.25);
+    }
+
+    .identify-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .spinner-icon {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     .transcript-meta {
@@ -320,6 +466,21 @@
         gap: 8px;
         color: var(--gray-500);
         font-size: 14px;
+    }
+
+    .ai-badge {
+        color: var(--purple);
+        font-weight: 600;
+    }
+
+    .error-banner {
+        margin-top: 12px;
+        padding: 10px 16px;
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        color: #dc2626;
+        font-size: 13px;
     }
 
     .meta-separator {

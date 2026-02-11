@@ -21,6 +21,8 @@
     setApiKey as saveApiKey,
     getOpenAIKey,
     setOpenAIKey as saveOpenAIKey,
+    getAnthropicKey,
+    setAnthropicKey as saveAnthropicKey,
     convertToAudio,
     cleanupTempDir,
     uploadAudio,
@@ -40,6 +42,7 @@
 
   let apiKey = $state("");
   let openaiKey = $state("");
+  let anthropicKey = $state("");
   let jobs: FileJob[] = $state([]);
   let options: TranscriptionOptions = $state({
     speakerCount: "auto",
@@ -78,6 +81,10 @@
       const storedOpenAIKey = await getOpenAIKey();
       if (storedOpenAIKey) {
         openaiKey = storedOpenAIKey;
+      }
+      const storedAnthropicKey = await getAnthropicKey();
+      if (storedAnthropicKey) {
+        anthropicKey = storedAnthropicKey;
       }
     } catch (e) {
       console.error("Failed to load API keys:", e);
@@ -310,6 +317,7 @@
   async function handleSaveApiKeys(
     assemblyaiKeyVal: string,
     openaiKeyVal: string,
+    anthropicKeyVal: string,
   ) {
     try {
       await saveApiKey(assemblyaiKeyVal);
@@ -319,6 +327,11 @@
         await saveOpenAIKey(openaiKeyVal);
       }
       openaiKey = openaiKeyVal;
+
+      if (anthropicKeyVal) {
+        await saveAnthropicKey(anthropicKeyVal);
+      }
+      anthropicKey = anthropicKeyVal;
 
       showToast("Settings saved", "success");
 
@@ -452,6 +465,7 @@
     onSave={handleSaveApiKeys}
     currentAssemblyAIKey={apiKey}
     currentOpenAIKey={openaiKey}
+    currentAnthropicKey={anthropicKey}
   />
 
   {#each toasts as toast (toast.id)}

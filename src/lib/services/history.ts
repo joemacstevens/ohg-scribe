@@ -4,6 +4,30 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptResult } from '../types';
 
+export interface MinutesGeneration {
+    id: string;
+    generatedAt: string;
+    content: string;
+    templateName?: string;
+    citations?: ParagraphCitation[]; // Citation data for this generation
+}
+
+// Citation source linking to a specific part of the transcript
+export interface CitationSource {
+    speaker: string;
+    startTime: number; // seconds into the audio
+    endTime: number;
+    text: string; // The actual transcript text
+}
+
+// Citations for a single paragraph in the minutes
+export interface ParagraphCitation {
+    paragraphIndex: number; // 0-indexed paragraph number
+    paragraphHash: string; // Hash of paragraph content to detect edits
+    sources: CitationSource[];
+    isStale?: boolean; // Set to true when paragraph is edited
+}
+
 export interface HistoryEntry {
     id: string;
     filename: string;
@@ -21,7 +45,8 @@ export interface HistoryEntry {
         includedSentiment: boolean;
     };
     aiInferredSpeakers?: string[]; // Speakers names that were AI-inferred (not user-confirmed)
-    minutes?: string; // HTML content of generated minutes
+    minutes?: string; // HTML content of latest minutes (for quick access)
+    minutesHistory?: MinutesGeneration[]; // Array of all generations
 }
 
 export interface HistorySummary {
