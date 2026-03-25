@@ -46,22 +46,52 @@ export async function getAssemblyAIKey(): Promise<string> {
 }
 
 /**
- * Upload audio directly to AssemblyAI from the browser.
- * Uses the server-issued key.  Returns the upload URL.
+ * Upload audio through our backend proxy to AssemblyAI.
+ * Uses XHR so we get real upload progress events.
+ * Returns the AssemblyAI upload URL.
  */
-export async function uploadAudio(file: File): Promise<string> {
-    const apiKey = await getAssemblyAIKey();
-    const res = await fetch('https://api.assemblyai.com/v2/upload', {
-        method: 'POST',
-        headers: {
-            'Authorization': apiKey,
-            'Content-Type': 'application/octet-stream',
-        },
-        body: file,
+export async function uploadAudio(
+    file: File,
+    onProgress?: (percent: number) => void
+): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/transcription/upload');
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                // Scale from 20% to 38% (upload phase)
+                const pct = 20 + Math.round((e.loaded / e.total) * 18);
+                onProgress(pct);
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data.upload_url);
+                } catch {
+                    reject(new Error('Invalid response from upload endpoint'));
+                }
+            } else {
+                try {
+                    const err = JSON.parse(xhr.responseText);
+                    reject(new Error(err.detail || `Upload failed: ${xhr.statusText}`));
+                } catch {
+                    reject(new Error(`Upload failed: ${xhr.statusText}`));
+                }
+            }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+        xhr.send(formData);
     });
-    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
-    const data = await res.json();
-    return data.upload_url;
 }
 
 /**

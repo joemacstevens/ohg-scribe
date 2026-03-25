@@ -109,9 +109,11 @@
     }
 
     try {
-      // Step 1: Upload directly from browser to AssemblyAI
+      // Step 1: Upload through backend proxy to AssemblyAI (with real progress)
       queueStore.updateJob(jobId, { status: "uploading", progress: 20 });
-      const uploadUrl = await uploadAudio(file);
+      const uploadUrl = await uploadAudio(file, (pct) => {
+        queueStore.updateJob(jobId, { progress: pct });
+      });
 
       queueStore.updateJob(jobId, { progress: 40 });
 

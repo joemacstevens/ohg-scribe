@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,34 @@ async def get_assemblyai_key(user: dict = Depends(get_current_user)):
     if not settings.assemblyai_api_key:
         raise HTTPException(status_code=500, detail="AssemblyAI API key not configured")
     return {"key": settings.assemblyai_api_key}
+
+
+@router.post("/upload")
+async def upload_audio(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Proxy audio upload to AssemblyAI server-side.
+    Avoids CORS issues with browser-direct uploads using Authorization headers.
+    """
+    if not settings.assemblyai_api_key:
+        raise HTTPException(status_code=500, detail="AssemblyAI API key not configured")
+
+    content = await file.read()
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(
+            "https://api.assemblyai.com/v2/upload",
+            headers={
+                "Authorization": settings.assemblyai_api_key,
+                "Content-Type": "application/octet-stream",
+            },
+            content=content,
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"AssemblyAI upload failed: {resp.text}")
+    return {"upload_url": resp.json()["upload_url"]}
+
 
 
 class TranscriptionOptions(BaseModel):
