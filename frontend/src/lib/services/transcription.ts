@@ -46,24 +46,26 @@ export async function getAssemblyAIKey(): Promise<string> {
 }
 
 /**
- * Upload audio through our backend proxy to AssemblyAI.
- * Uses XHR so we get real upload progress events.
+ * Upload audio directly to AssemblyAI from the browser using XHR.
+ * AssemblyAI supports CORS with Authorization header (access-control-allow-origin: *).
+ * XHR gives us real upload progress events unlike fetch().
  * Returns the AssemblyAI upload URL.
  */
 export async function uploadAudio(
     file: File,
     onProgress?: (percent: number) => void
 ): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const formData = new FormData();
-        formData.append('file', file);
+    const apiKey = await getAssemblyAIKey();
 
+    return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/transcription/upload');
+        xhr.open('POST', 'https://api.assemblyai.com/v2/upload');
+        xhr.setRequestHeader('Authorization', apiKey);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable && onProgress) {
-                // Scale from 20% to 38% (upload phase)
+                // Scale 20% → 38% during upload
                 const pct = 20 + Math.round((e.loaded / e.total) * 18);
                 onProgress(pct);
             }
@@ -75,22 +77,17 @@ export async function uploadAudio(
                     const data = JSON.parse(xhr.responseText);
                     resolve(data.upload_url);
                 } catch {
-                    reject(new Error('Invalid response from upload endpoint'));
+                    reject(new Error('Invalid response from AssemblyAI upload'));
                 }
             } else {
-                try {
-                    const err = JSON.parse(xhr.responseText);
-                    reject(new Error(err.detail || `Upload failed: ${xhr.statusText}`));
-                } catch {
-                    reject(new Error(`Upload failed: ${xhr.statusText}`));
-                }
+                reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
             }
         });
 
         xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
         xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
-        xhr.send(formData);
+        xhr.send(file);
     });
 }
 
