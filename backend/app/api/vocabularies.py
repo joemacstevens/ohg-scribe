@@ -1,10 +1,13 @@
+import io
+import json
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
+from app.config import settings
 from app.db.database import get_db
 from app.db import models
 
@@ -240,3 +243,100 @@ def import_vocabularies(
 
     db.commit()
     return {"imported": count}
+
+
+@router.post("/extract-from-document")
+async def extract_from_document(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Accept a document upload, extract text, then use Claude to identify
+    domain-specific vocabulary terms grouped by category.
+    """
+    import anthropic as _anthropic
+
+    # Read file content
+    content = await file.read()
+    filename = file.filename or "document"
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    # Extract text based on file type
+    text = ""
+    if extension == "txt" or extension == "md":
+        text = content.decode("utf-8", errors="replace")
+    elif extension == "docx":
+        try:
+            import docx2txt
+            text = docx2txt.process(io.BytesIO(content))
+        except ImportError:
+            raise HTTPException(
+                status_code=422,
+                detail="docx2txt not installed. Only .txt and .md files are supported on this deployment."
+            )
+    elif extension == "pdf":
+        try:
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+        except ImportError:
+            raise HTTPException(
+                status_code=422,
+                detail="pdfplumber not installed. Only .txt and .md files are supported on this deployment."
+            )
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type: {extension}. Supported: .txt, .md, .docx, .pdf"
+        )
+
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from the file.")
+
+    # Truncate to ~12000 chars to avoid token limits
+    text = text[:12000]
+
+    # Call Claude to extract vocabulary
+    client = _anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+    prompt = f"""You are a medical transcription specialist. Analyze the following document and extract domain-specific terminology that would be useful for boosting transcription accuracy.
+
+Extract:
+1. Drug/medication names (brand and generic)
+2. Medical conditions and diseases
+3. Procedures and treatments
+4. Medical acronyms and abbreviations
+5. Organization/company names
+6. Technical jargon specific to this document
+
+Return ONLY a JSON object in this exact format:
+{{
+  "suggested_name": "Brief descriptive name for this vocabulary set",
+  "categories": [
+    {{
+      "name": "Category Name",
+      "terms": ["term1", "term2", "term3"]
+    }}
+  ]
+}}
+
+Document:
+{text}"""
+
+    message = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.replace("```json", "").replace("```", "").strip()
+
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {e}")
+
+    return result
+
