@@ -104,10 +104,9 @@ if STATIC_DIR and os.path.isdir(STATIC_DIR):
         if candidate.is_file():
             return FileResponse(candidate)
 
+        # Serve directory index.html directly (no redirect) to avoid double-slash issues
         dir_index = candidate / "index.html"
         if candidate.is_dir() and dir_index.is_file():
-            if not full_path.endswith("/"):
-                return RedirectResponse(url=f"/{full_path}/", status_code=301)
             return FileResponse(dir_index)
 
         return FileResponse(static_path / "index.html")
