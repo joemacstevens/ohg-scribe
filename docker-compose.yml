@@ -3,11 +3,10 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - backend/.env
     environment:
       - DATABASE_URL=postgresql://ohgscribe:ohgscribe@db:5432/ohgscribe
-      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - DEV_USER_EMAIL=${DEV_USER_EMAIL:-dev@example.com}
       - STATIC_DIR=/app/frontend/dist
     depends_on:
       db:

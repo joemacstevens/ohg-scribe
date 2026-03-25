@@ -18,8 +18,6 @@
     import { fade, fly } from "svelte/transition";
     import StyleSelector from "./StyleSelector.svelte";
     import LexiconSelector from "./LexiconSelector.svelte";
-    import { invoke } from "@tauri-apps/api/core";
-    import { open } from "@tauri-apps/plugin-dialog";
 
     let selectedTemplate = $state<Template | null>(null);
     let selectedStyle = $state<Style>(DEFAULT_STYLES[0]); // Novo Nordisk as default
@@ -33,7 +31,8 @@
     // File Upload State
     let isExtracting = $state(false);
     let isDragOver = $state(false);
-    let hasImportedContext = $state(false); // Track if file was imported
+    let hasImportedContext = $state(false);
+    let fileInputEl: HTMLInputElement | null = $state(null);
 
     async function handleGenerate() {
         if (!selectedTemplate || !$workspaceStore.currentTranscript) return;
@@ -116,18 +115,31 @@
 
     // --- File Upload Logic ---
 
-    async function handleFileRead(path: string) {
+    async function handleFileRead(file: File) {
         isExtracting = true;
         error = null;
         hasImportedContext = false;
         try {
-            const text = await invoke<string>("extract_document_text", {
-                path,
-            });
-            if (text) {
-                // Store context but don't display it
-                slideContext = text;
+            const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+            if (ext === 'txt' || ext === 'md') {
+                // Read text directly in browser
+                slideContext = await file.text();
                 hasImportedContext = true;
+            } else {
+                // Send to backend for extraction (.pdf, .docx, .pptx)
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/api/context/extract-text', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `Server error: ${res.statusText}`);
+                }
+                const data = await res.json();
+                slideContext = data.text || '';
+                hasImportedContext = !!slideContext;
             }
         } catch (e) {
             console.error(e);
@@ -137,60 +149,35 @@
         }
     }
 
-    async function handleBrowse() {
-        const selected = await open({
-            multiple: false,
-            filters: [
-                {
-                    name: "Presentations & Documents",
-                    extensions: ["pptx", "ppt", "pdf", "docx", "txt", "md"],
-                },
-            ],
-        });
+    function handleBrowse() {
+        fileInputEl?.click();
+    }
 
-        if (selected && typeof selected === "string") {
-            await handleFileRead(selected);
+    async function handleFileInputChange(e: Event) {
+        const input = e.target as HTMLInputElement;
+        if (input.files?.[0]) {
+            await handleFileRead(input.files[0]);
+            input.value = ''; // reset for re-upload
         }
     }
 
     function handleDrop(e: DragEvent) {
         e.preventDefault();
         isDragOver = false;
-
-        if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-            // In Tauri webview, File object might not have path directly exposed continuously
-            // depending on version, but typically we need the OS path.
-            // NOTE: The standard HTML5 File API doesn't expose full path for security.
-            // However, Tauri's drop event usually does if configured, or we rely on the specific
-            // tauri drag-drop plugin event.
-            // WAIT - Standard web drag/drop in Tauri v2 essentially gives limited info.
-            // BUT since user explicitly enabled "tauri-plugin-drag-drop" (historically) or uses file-drop event.
-            // Let's assume standard behavior: we might need `tauri-plugin-fs` logic or the `tauri://file-drop` event
-            // if we are listening on window.
-            // actually, let's stick to the browsing button as primary reliable method
-            // and try a simple check for 'path' property if available in current Tauri setup (often mocked in dev).
-            // Safer to assume we might need the browse button mostly, but let's try reading the name at least.
-            // Actually, reading file content via JS FileReader is possible for drag-drop!
-            // BUT we want to use the RUST backend 'extract_document_text' which takes a PATH.
-            // Obtaining a Path from a DragEvent in Webview is restricted.
-            // Workaround: TAURI provides a specific event for file drops.
-            // Let's implement `listen` imported from `@tauri-apps/api/event`.
-            // HOWEVER, simple impl: just use Browse button to be 100% safe on paths.
-            // Let's keep Drag/Drop as a visual cue but trigger browse?
-            // OR - if we use `window.__TAURI__.event.listen('tauri://file-drop', ...)`
-
-            // Re-evaluating: The user prompt asked to "upload". Drag and drop is nice.
-            // `ExtractFromDocument.svelte` likely uses `open` dialog.
-            // Let's stick to `open` dialog for guaranteed Path access for the Rust backend.
-            // If I implement `handleDrop`, I can't easily get the absolute path for Rust
-            // without using the tauri file-drop event listener which is global.
-            // I will implement the Visual Drop Zone that just asks you to click it to browse,
-            // or I'll add the global listener. Global listener is complex for a component.
-            // I will settle for a Clickable "Drop Zone" visual that triggers browse.
-            handleBrowse();
+        if (e.dataTransfer?.files?.[0]) {
+            handleFileRead(e.dataTransfer.files[0]);
         }
     }
 </script>
+
+<!-- Hidden file input -->
+<input
+    bind:this={fileInputEl}
+    type="file"
+    accept=".txt,.md,.pdf,.docx,.pptx"
+    onchange={handleFileInputChange}
+    style="display:none"
+/>
 
 <div class="setup-container" in:fade>
     <div class="content-wrapper">
