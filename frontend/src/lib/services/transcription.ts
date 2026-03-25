@@ -130,11 +130,27 @@ export async function submitTranscription(
 /**
  * Poll the backend for transcript status.
  * Backend proxies to AssemblyAI.
+ * Retries up to maxRetries times on network errors.
  */
-export async function pollTranscription(transcriptId: string): Promise<TranscriptResponse> {
-    const res = await fetch(`/api/transcription/${transcriptId}`);
-    if (!res.ok) throw new Error(`Poll failed: ${res.statusText}`);
-    return res.json();
+export async function pollTranscription(
+    transcriptId: string,
+    maxRetries: number = 3
+): Promise<TranscriptResponse> {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const res = await fetch(`/api/transcription/${transcriptId}`);
+            if (!res.ok) throw new Error(`Poll failed: ${res.statusText}`);
+            return await res.json();
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            if (attempt < maxRetries) {
+                // Wait before retrying (2s, 4s, 8s back-off)
+                await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
+            }
+        }
+    }
+    throw lastError ?? new Error('Polling failed after retries');
 }
 
 /** Poll until transcription completes or times out. */
@@ -149,6 +165,7 @@ export async function waitForTranscription(
     await new Promise(resolve => setTimeout(resolve, initialDelayMs));
 
     while (Date.now() - startTime < timeoutMs) {
+        // pollTranscription has built-in retry for network errors
         const response = await pollTranscription(transcriptId);
         onProgress?.(response.status);
 
