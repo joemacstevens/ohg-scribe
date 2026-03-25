@@ -6,7 +6,7 @@ services:
     env_file:
       - backend/.env
     environment:
-      - DATABASE_URL=postgresql://ohgscribe:ohgscribe@db:5432/ohgscribe
+      - DATABASE_URL=postgresql+psycopg://ohgscribe:ohgscribe@db:5432/ohgscribe
       - STATIC_DIR=/app/frontend/dist
     depends_on:
       db:

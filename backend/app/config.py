@@ -25,3 +25,7 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
+
+# Module-level singleton for direct import: `from app.config import settings`
+settings = get_settings()
