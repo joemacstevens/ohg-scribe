@@ -1,8 +1,6 @@
 <script lang="ts">
     import { workspaceStore } from "$lib/stores/workspace";
     import { updateHistoryEntry, getHistoryEntry } from "$lib/services/history";
-    import { getApiKey } from "$lib/services/transcription";
-    import { invoke } from "@tauri-apps/api/core";
 
     let segments = $derived($workspaceStore.currentTranscript?.segments || []);
     let activeSpeakerId = $derived($workspaceStore.activeSpeakerId);
@@ -10,10 +8,8 @@
         $workspaceStore.activeAttributionIds || [],
     );
 
-    // Audio Player State
-    import { convertFileSrc } from "@tauri-apps/api/core";
-    let audioPath = $derived($workspaceStore.audioPath);
-    let audioSrc = $derived(audioPath ? convertFileSrc(audioPath) : null);
+    // No local audio playback in web version
+    let audioSrc: null = null;
 
     let audioElement: HTMLAudioElement | null = $state(null);
     let isPlaying = $state(false);
@@ -190,7 +186,7 @@
         }
     }
 
-    // AI Speaker Identification using LeMUR
+    // AI Speaker Identification using Claude
     async function identifySpeakers() {
         if (!$workspaceStore.currentTranscript || segments.length === 0) return;
 
@@ -198,61 +194,56 @@
         identifyError = null;
 
         try {
-            // Get AssemblyAI API key
-            const apiKey = await getApiKey();
-            if (!apiKey) {
-                throw new Error(
-                    "AssemblyAI API key not found. Please set it in Settings.",
-                );
+            const uniqueSpeakerLabels = [...new Set(segments.map((s) => s.speaker))];
+            const transcriptSample = segments.slice(0, 80)
+                .map((s) => `${s.speaker}: ${s.text}`)
+                .join("\n");
+
+            const systemPrompt = `You are an expert at identifying people from conversation transcripts. 
+Analyse the transcript below and identify real names for each speaker label.
+Return ONLY a valid JSON object mapping speaker labels to their real names.
+Example: {"SPEAKER_A": "Dr. Smith", "SPEAKER_B": "Jane Doe"}
+If you cannot determine a name, keep the original label.`;
+
+            const res = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    system_prompt: systemPrompt,
+                    messages: [{
+                        role: 'user',
+                        content: `Speaker labels: ${uniqueSpeakerLabels.join(', ')}\n\nTranscript sample:\n${transcriptSample}\n\nReturn ONLY the JSON mapping object.`
+                    }]
+                })
+            });
+            if (!res.ok) throw new Error(`Speaker ID request failed: ${res.statusText}`);
+            const data = await res.json();
+
+            // Parse the JSON mapping from the response
+            let mapping: Record<string, string> = {};
+            try {
+                let rawText = data.text?.trim() || '{}';
+                if (rawText.startsWith('```')) {
+                    rawText = rawText.replace(/^```[a-z]*\n?/, '').replace(/```$/, '').trim();
+                }
+                mapping = JSON.parse(rawText);
+            } catch {
+                console.warn('Could not parse speaker mapping, skipping');
             }
 
-            // Format transcript for LeMUR context
-            const transcriptText = segments
-                .map((s) => `Speaker ${s.speaker}:\n${s.text}`)
-                .join("\n\n");
-
-            // Get unique speaker labels
-            const uniqueSpeakerLabels = [
-                ...new Set(segments.map((s) => s.speaker)),
-            ];
-
-            console.log("Identifying speakers:", uniqueSpeakerLabels);
-
-            // Call Rust backend
-            const mapping = await invoke<Record<string, string>>(
-                "identify_speakers",
-                {
-                    transcriptText,
-                    speakerLabels: uniqueSpeakerLabels,
-                    apiKey,
-                },
-            );
-
-            console.log("Speaker mapping result:", mapping);
-
-            // Apply results to transcript
             if (Object.keys(mapping).length > 0) {
-                const inferredNames = Object.values(mapping);
-                aiInferredSpeakers = inferredNames;
-
-                // Update all segments with the new speaker names
+                aiInferredSpeakers = Object.values(mapping);
                 for (let i = 0; i < segments.length; i++) {
                     const oldSpeaker = segments[i].speaker;
                     const newSpeaker = mapping[oldSpeaker] || oldSpeaker;
                     if (newSpeaker !== oldSpeaker) {
-                        workspaceStore.updateSegment(
-                            i,
-                            newSpeaker,
-                            segments[i].text,
-                        );
+                        workspaceStore.updateSegment(i, newSpeaker, segments[i].text);
                     }
                 }
-
-                // Persist changes
                 await persistChanges();
             }
         } catch (e) {
-            console.error("LeMUR Error:", e);
+            console.error("Speaker ID Error:", e);
             identifyError = e instanceof Error ? e.message : String(e);
         } finally {
             identifying = false;

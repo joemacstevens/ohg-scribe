@@ -1,15 +1,19 @@
-import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptResult } from '../types';
 import type { Template, Persona, Lexicon, Style } from '../types/minutes';
 import type { ParagraphCitation, CitationSource } from './history';
 
-// Get Anthropic API key from settings
-async function getAnthropicKey(): Promise<string | null> {
-    try {
-        return await invoke<string | null>('get_anthropic_key');
-    } catch {
-        return null;
+/** Poll a background job until completed or error. Returns the result text. */
+async function pollJob(jobId: string, intervalMs = 3000, timeoutMs = 10 * 60 * 1000): Promise<string> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        await new Promise(r => setTimeout(r, intervalMs));
+        const res = await fetch(`/api/jobs/${jobId}`);
+        if (!res.ok) throw new Error('Failed to poll job status');
+        const job = await res.json();
+        if (job.status === 'completed') return job.result?.text ?? '';
+        if (job.status === 'error') throw new Error(job.error ?? 'Generation failed');
     }
+    throw new Error('Generation timed out');
 }
 
 export interface GenerationRequest {
@@ -30,11 +34,6 @@ export interface MinutesGenerationResult {
 }
 
 export async function generateMinutes(request: GenerationRequest): Promise<MinutesGenerationResult> {
-    const apiKey = await getAnthropicKey();
-    if (!apiKey) {
-        throw new Error("Anthropic API key not found. Please set it in Settings.");
-    }
-
     // Truncate slideContext if it's too massive (e.g. > 100k chars) to avoid 400 errors
     let safeSlideContext = request.slideContext;
     if (safeSlideContext && safeSlideContext.length > 100000) {
@@ -54,14 +53,22 @@ export async function generateMinutes(request: GenerationRequest): Promise<Minut
     const userPrompt = constructUserPrompt(request.transcript, safeSlideContext, request.includeCitations);
 
     try {
-        // Use Rust backend to call Claude API (avoids CORS)
-        const content = await invoke<string>('generate_with_claude', {
-            apiKey,
-            systemPrompt,
-            userPrompt,
-            model: 'claude-sonnet-4-20250514',
-            maxTokens: 16000
+        // POST to backend — returns a job ID immediately (avoids gateway timeout)
+        const startRes = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                system_prompt: systemPrompt,
+                user_prompt: userPrompt,
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 16000
+            })
         });
+        if (!startRes.ok) throw new Error(`Generate failed: ${startRes.statusText}`);
+        const { jobId } = await startRes.json();
+
+        // Poll until complete
+        const content = await pollJob(jobId);
 
         if (!content) {
             throw new Error("No content generated from Claude.");
@@ -180,18 +187,15 @@ function hashString(str: string): string {
 }
 
 export async function refineText(text: string, instruction: string): Promise<string> {
-    const apiKey = await getAnthropicKey();
-    if (!apiKey) throw new Error("Anthropic API key not found");
-
     try {
-        // Use Rust backend to call Claude API (avoids CORS)
-        const refined = await invoke<string>('refine_with_claude', {
-            apiKey,
-            text,
-            instruction
+        const res = await fetch('/api/ai/refine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, instruction })
         });
-
-        return refined || text;
+        if (!res.ok) throw new Error(`Refine failed: ${res.statusText}`);
+        const data = await res.json();
+        return data.text || text;
     } catch (e) {
         console.error(e);
         throw e;
@@ -208,8 +212,6 @@ export async function expandText(
     fullTranscript: string,
     currentMinutes: string
 ): Promise<string> {
-    const apiKey = await getAnthropicKey();
-    if (!apiKey) throw new Error("Anthropic API key not found");
 
     const instruction = `You are expanding a section of meeting minutes by adding more detail from the transcript.
 
@@ -241,13 +243,14 @@ TASK:
 IMPORTANT: The expanded text should read as if it was written by the same author as the rest of the minutes. It should blend seamlessly.`;
 
     try {
-        const expanded = await invoke<string>('refine_with_claude', {
-            apiKey,
-            text: selectedText,
-            instruction
+        const res = await fetch('/api/ai/refine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: selectedText, instruction })
         });
-
-        return expanded || selectedText;
+        if (!res.ok) throw new Error(`Expand failed: ${res.statusText}`);
+        const data = await res.json();
+        return data.text || selectedText;
     } catch (e) {
         console.error(e);
         throw e;

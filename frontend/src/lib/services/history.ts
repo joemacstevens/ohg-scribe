@@ -1,7 +1,5 @@
 // src/lib/services/history.ts
 // Service for storing and retrieving transcription history
-
-import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptResult } from '../types';
 
 export interface MinutesGeneration {
@@ -62,33 +60,47 @@ export interface HistorySummary {
 // Save a new transcription to history
 export async function saveToHistory(entry: HistoryEntry): Promise<void> {
     console.log('Saving to history:', entry.filename);
-    await invoke('save_history_entry', { entry: JSON.stringify(entry) });
+    const res = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: entry.id,
+            filename: entry.filename,
+            speaker_count: entry.speakerCount,
+            word_count: entry.wordCount,
+            data: entry,
+        })
+    });
+    if (!res.ok) throw new Error(`Failed to save history: ${res.statusText}`);
 }
 
 // Get all history entries (summaries only for performance)
 export async function getHistoryList(): Promise<HistorySummary[]> {
-    const result = await invoke<string>('get_history_list');
-    return JSON.parse(result);
+    const res = await fetch('/api/history');
+    if (!res.ok) throw new Error(`Failed to load history: ${res.statusText}`);
+    return res.json();
 }
 
 // Get a single history entry by ID (full transcript)
 export async function getHistoryEntry(id: string): Promise<HistoryEntry | null> {
-    const result = await invoke<string | null>('get_history_entry', { id });
-    if (result) {
-        return JSON.parse(result);
-    }
-    return null;
+    const res = await fetch(`/api/history/${id}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Failed to load history entry: ${res.statusText}`);
+    const payload = await res.json();
+    // Backend wraps the full entry in a "data" field
+    return payload.data as HistoryEntry;
 }
 
 // Delete a history entry
 export async function deleteHistoryEntry(id: string): Promise<void> {
-    await invoke('delete_history_entry', { id });
+    const res = await fetch(`/api/history/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Failed to delete history entry: ${res.statusText}`);
 }
 
 // Update an existing history entry (e.g., after identifying speakers)
 export async function updateHistoryEntry(entry: HistoryEntry): Promise<void> {
     console.log('Updating history entry:', entry.id);
-    await invoke('save_history_entry', { entry: JSON.stringify(entry) });
+    await saveToHistory(entry);
 }
 
 // Generate a unique ID for new entries

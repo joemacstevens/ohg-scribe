@@ -2,20 +2,16 @@
     import { onMount } from "svelte";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
-    import { invoke } from "@tauri-apps/api/core";
-    import { convertFileSrc } from "@tauri-apps/api/core";
     import {
         getHistoryEntry,
         deleteHistoryEntry,
         updateHistoryEntry,
         type HistoryEntry,
     } from "$lib/services/history";
-    import { getApiKey } from "$lib/services/transcription";
     import {
         generateWordDocument,
         saveDocument,
     } from "$lib/services/docx-export";
-    import { save } from "@tauri-apps/plugin-dialog";
     import SpeakerEditModal from "$lib/components/SpeakerEditModal.svelte";
     import RefinePanel, {
         type RefineOptions,
@@ -28,12 +24,13 @@
     let identifying = $state(false);
     let speakerMapping = $state<Record<string, string>>({});
 
-    // Audio player state
+    // Audio player not available in web (no local file access)
     let audioElement: HTMLAudioElement | null = $state(null);
     let isPlaying = $state(false);
     let currentTime = $state(0);
     let duration = $state(0);
     let currentSegmentIndex = $state(-1);
+    const audioSrc: null = null; // No local file system access
 
     // Inline speaker editing state - tracks segment INDEX for single-instance edits
     let editingSegmentIndex = $state<number | null>(null);
@@ -53,11 +50,6 @@
     function isAiInferred(speakerName: string): boolean {
         return aiInferredSet.has(speakerName);
     }
-
-    // Convert audio path to asset URL for Tauri WebView
-    const audioSrc = $derived(
-        entry?.audioPath ? convertFileSrc(entry.audioPath) : null,
-    );
 
     const id = $derived($page.params.id);
 
@@ -97,21 +89,9 @@
                 includeSentiment: entry.options.includedSentiment,
             });
 
-            const defaultName =
+            const downloadName =
                 entry.filename.replace(/\.[^/.]+$/, "") + "_transcript.docx";
-            const outputPath = await save({
-                defaultPath: defaultName,
-                filters: [{ name: "Word Document", extensions: ["docx"] }],
-                title: "Save Transcript As",
-            });
-
-            if (!outputPath) {
-                exporting = false;
-                return;
-            }
-
-            await saveDocument(docBuffer, outputPath);
-            alert(`Document saved to: ${outputPath}`);
+            saveDocument(docBuffer, downloadName); // triggers browser download
         } catch (e) {
             error = `Failed to export: ${e instanceof Error ? e.message : String(e)}`;
             console.error(error);
@@ -144,38 +124,45 @@
         error = null;
 
         try {
-            // Get API key
-            const apiKey = await getApiKey();
-            if (!apiKey) {
-                error =
-                    "AssemblyAI API key not configured. Please add it in Settings.";
-                identifying = false;
-                return;
+            const uniqueSpeakerLabels = [...new Set(entry.transcript.segments.map((s) => s.speaker))];
+            const transcriptSample = entry.transcript.segments.slice(0, 80)
+                .map((s) => `${s.speaker}: ${s.text}`)
+                .join("\n");
+
+            const systemPrompt = `You are an expert at identifying people from conversation transcripts.
+Analyse the transcript below and identify real names for each speaker label.
+Return ONLY a valid JSON object mapping speaker labels to their real names.
+Example: {"SPEAKER_A": "Dr. Smith", "SPEAKER_B": "Jane Doe"}
+If you cannot determine a name, keep the original label.`;
+
+            const res = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    system_prompt: systemPrompt,
+                    messages: [{
+                        role: 'user',
+                        content: `Speaker labels: ${uniqueSpeakerLabels.join(', ')}\n\nTranscript sample:\n${transcriptSample}\n\nReturn ONLY the JSON mapping object.`
+                    }]
+                })
+            });
+
+            if (!res.ok) throw new Error(`Speaker ID request failed: ${res.statusText}`);
+            const data = await res.json();
+
+            let mapping: Record<string, string> = {};
+            try {
+                let rawText = data.text?.trim() || '{}';
+                if (rawText.startsWith('```')) {
+                    rawText = rawText.replace(/^```[a-z]*\n?/, '').replace(/```$/, '').trim();
+                }
+                mapping = JSON.parse(rawText);
+            } catch {
+                console.warn('Could not parse speaker mapping');
             }
-
-            // Build transcript text with speaker labels
-            const transcriptText = entry.transcript.segments
-                .map((s) => `Speaker ${s.speaker}:\n${s.text}`)
-                .join("\n\n");
-
-            // Get unique speaker labels
-            const uniqueSpeakers = [
-                ...new Set(entry.transcript.segments.map((s) => s.speaker)),
-            ];
-
-            // Call LeMUR to identify speakers
-            const mapping = await invoke<Record<string, string>>(
-                "identify_speakers",
-                {
-                    transcriptText,
-                    speakerLabels: uniqueSpeakers,
-                    apiKey,
-                },
-            );
 
             speakerMapping = mapping;
 
-            // Apply mapping to transcript segments
             if (Object.keys(mapping).length > 0) {
                 const updatedSegments = entry.transcript.segments.map(
                     (segment) => ({
@@ -184,7 +171,6 @@
                     }),
                 );
 
-                // Get the AI-inferred names (the values in the mapping)
                 const inferredNames = Object.values(mapping);
 
                 entry = {
@@ -196,7 +182,6 @@
                     aiInferredSpeakers: inferredNames,
                 };
 
-                // Save updated entry to history
                 await updateHistoryEntry(entry);
             }
         } catch (e) {
@@ -229,71 +214,20 @@
         goto("/");
     }
 
-    // Clean up filename for display title
     function cleanTitle(filename: string): string {
         return filename
-            .replace(/\.[^/.]+$/, "") // Remove extension
-            .replace(/_/g, " ") // Underscores to spaces
-            .replace(/\s+/g, " ") // Normalize spaces
+            .replace(/\.[^/.]+$/, "")
+            .replace(/_/g, " ")
+            .replace(/\s+/g, " ")
             .trim();
     }
 
-    // Audio player functions
-    function handleTimeUpdate() {
-        if (audioElement) {
-            currentTime = audioElement.currentTime * 1000; // Convert to ms
-            updateCurrentSegment();
-        }
-    }
-
-    function handleLoadedMetadata() {
-        if (audioElement) {
-            duration = audioElement.duration * 1000; // Convert to ms
-        }
-    }
-
-    function updateCurrentSegment() {
-        if (!entry) return;
-
-        // Find segment that contains current time
-        const index = entry.transcript.segments.findIndex((seg, i, arr) => {
-            const nextStart = arr[i + 1]?.start ?? Infinity;
-            return currentTime >= seg.start && currentTime < nextStart;
-        });
-
-        if (index !== currentSegmentIndex) {
-            currentSegmentIndex = index;
-
-            // Auto-scroll to current segment
-            if (index >= 0) {
-                const el = document.getElementById(`segment-${index}`);
-                el?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        }
-    }
-
-    function seekToSegment(segmentIndex: number) {
-        if (!entry || !audioElement) return;
-
-        const segment = entry.transcript.segments[segmentIndex];
-        if (segment) {
-            audioElement.currentTime = segment.start / 1000; // Convert ms to seconds
-            audioElement.play();
-            isPlaying = true;
-        }
-    }
-
-    function togglePlayPause() {
-        if (!audioElement) return;
-
-        if (isPlaying) {
-            audioElement.pause();
-        } else {
-            audioElement.play();
-        }
-        isPlaying = !isPlaying;
-    }
-
+    // Audio player functions (no-op in web — no local file)
+    function handleTimeUpdate() {}
+    function handleLoadedMetadata() {}
+    function updateCurrentSegment() {}
+    function seekToSegment(_segmentIndex: number) {}
+    function togglePlayPause() {}
     function formatPlayTime(ms: number): string {
         const totalSeconds = Math.floor(ms / 1000);
         const minutes = Math.floor(totalSeconds / 60);
@@ -301,9 +235,9 @@
         return `${minutes}:${seconds.toString().padStart(2, "0")}`;
     }
 
-    // Inline speaker name editing - edits ONLY the clicked segment (single instance)
+    // Inline speaker name editing
     function startEditingSegment(segmentIndex: number, event: MouseEvent) {
-        event.stopPropagation(); // Don't trigger segment click
+        event.stopPropagation();
         if (!entry) return;
         editingSegmentIndex = segmentIndex;
         editingSpeakerNewName = entry.transcript.segments[segmentIndex].speaker;
@@ -327,31 +261,23 @@
             return;
         }
 
-        // Update ONLY this specific segment (single instance edit)
         const updatedSegments = entry.transcript.segments.map((segment, i) => ({
             ...segment,
             speaker: i === editingSegmentIndex ? newName : segment.speaker,
         }));
 
-        // If the old AI-inferred name is no longer used anywhere, remove it
         const stillUsed = updatedSegments.some((s) => s.speaker === oldName);
         let updatedAiInferred = entry.aiInferredSpeakers ?? [];
         if (!stillUsed) {
-            updatedAiInferred = updatedAiInferred.filter(
-                (name) => name !== oldName,
-            );
+            updatedAiInferred = updatedAiInferred.filter((name) => name !== oldName);
         }
 
         entry = {
             ...entry,
-            transcript: {
-                ...entry.transcript,
-                segments: updatedSegments,
-            },
+            transcript: { ...entry.transcript, segments: updatedSegments },
             aiInferredSpeakers: updatedAiInferred,
         };
 
-        // Persist changes
         await updateHistoryEntry(entry);
         editingSegmentIndex = null;
     }
@@ -362,11 +288,8 @@
     }
 
     function handleEditKeydown(event: KeyboardEvent) {
-        if (event.key === "Enter") {
-            saveSegmentSpeaker();
-        } else if (event.key === "Escape") {
-            cancelEditingSegment();
-        }
+        if (event.key === "Enter") saveSegmentSpeaker();
+        else if (event.key === "Escape") cancelEditingSegment();
     }
 
     async function handleBulkSpeakerSave(renames: Record<string, string>) {
@@ -375,13 +298,11 @@
             return;
         }
 
-        // Apply all renames to segments
         const updatedSegments = entry.transcript.segments.map((segment) => ({
             ...segment,
             speaker: renames[segment.speaker] ?? segment.speaker,
         }));
 
-        // Update AI-inferred list: remove renamed speakers (they're now confirmed)
         let updatedAiInferred = [...(entry.aiInferredSpeakers ?? [])];
         for (const [oldName, newName] of Object.entries(renames)) {
             updatedAiInferred = updatedAiInferred.filter(
@@ -391,10 +312,7 @@
 
         entry = {
             ...entry,
-            transcript: {
-                ...entry.transcript,
-                segments: updatedSegments,
-            },
+            transcript: { ...entry.transcript, segments: updatedSegments },
             aiInferredSpeakers: updatedAiInferred,
         };
 
@@ -402,102 +320,10 @@
         showSpeakerEditModal = false;
     }
 
-    async function handleRefine(options: RefineOptions) {
-        if (!entry || !entry.audioPath) {
-            error = "No cached audio available for refinement.";
-            showRefinePanel = false;
-            return;
-        }
-
-        isRefining = true;
-        refineProgress = "Preparing...";
-
-        try {
-            // Import required functions
-            const {
-                uploadAudio,
-                submitTranscription,
-                waitForTranscription,
-                parseTranscriptResponse,
-            } = await import("$lib/services/transcription");
-            const { saveToHistory, createHistoryEntry } = await import(
-                "$lib/services/history"
-            );
-
-            const apiKey = await getApiKey();
-            if (!apiKey) {
-                error =
-                    "AssemblyAI API key not configured. Please add it in Settings.";
-                showRefinePanel = false;
-                isRefining = false;
-                return;
-            }
-
-            // Collect user-edited speaker names as hints for refinement
-            const speakerHints: string[] = [];
-            if (entry.transcript?.segments) {
-                const uniqueSpeakers = new Set<string>();
-                for (const seg of entry.transcript.segments) {
-                    if (seg.speaker && !uniqueSpeakers.has(seg.speaker)) {
-                        uniqueSpeakers.add(seg.speaker);
-                        speakerHints.push(seg.speaker);
-                    }
-                }
-            }
-
-            // Re-upload the cached audio
-            refineProgress = "Uploading audio...";
-            const uploadUrl = await uploadAudio(entry.audioPath, apiKey);
-
-            // Submit with new options and speaker hints
-            refineProgress = "Submitting transcription request...";
-            const transcriptId = await submitTranscription(uploadUrl, apiKey, {
-                speakerCount: options.speakerCount,
-                boostWords: options.boostWords,
-                boostWordsInput: options.boostWords.join(", "),
-                selectedPresets: [],
-                includeSummary: entry.options.includedSummary,
-                detectTopics: entry.options.includedTopics,
-                analyzeSentiment: entry.options.includedSentiment,
-                extractKeyPhrases: false,
-                speakerLabelMode: options.speakerLabelMode as any,
-                speakerNamesInput: speakerHints.join(", "),
-            });
-
-            // Wait for completion with progress updates
-            refineProgress = "Transcribing audio...";
-            const response = await waitForTranscription(transcriptId, apiKey);
-
-            refineProgress = "Processing results...";
-            const transcript = parseTranscriptResponse(response, speakerHints);
-
-            // Create new history entry
-            const newEntry = createHistoryEntry(
-                entry.filename,
-                entry.originalPath,
-                transcript,
-                {
-                    speakerNames: speakerHints,
-                    includedSummary: entry.options.includedSummary,
-                    includedTopics: entry.options.includedTopics,
-                    includedSentiment: entry.options.includedSentiment,
-                },
-                entry.audioPath,
-            );
-
-            // Save new entry
-            await saveToHistory(newEntry);
-
-            // Navigate to new transcript
-            isRefining = false;
-            showRefinePanel = false;
-            goto(`/transcript/${newEntry.id}`);
-        } catch (e) {
-            error = `Failed to refine transcript: ${e instanceof Error ? e.message : String(e)}`;
-            console.error(error);
-            isRefining = false;
-            showRefinePanel = false;
-        }
+    // Refine: Not available in web (requires stored audio file)
+    async function handleRefine(_options: RefineOptions) {
+        error = "Refinement requires stored audio, which is not available in the web version.";
+        showRefinePanel = false;
     }
 </script>
 

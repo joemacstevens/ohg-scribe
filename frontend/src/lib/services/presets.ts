@@ -1,8 +1,6 @@
 // src/lib/services/presets.ts
 // Service for storing and retrieving boost word presets
 
-import { invoke } from '@tauri-apps/api/core';
-
 export interface BoostWordPreset {
     id: string;
     name: string;
@@ -13,18 +11,29 @@ export interface BoostWordPreset {
 // Save a new preset
 export async function savePreset(preset: BoostWordPreset): Promise<void> {
     console.log('Saving preset:', preset.name);
-    await invoke('save_preset', { preset: JSON.stringify(preset) });
+    const res = await fetch('/api/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: preset.name, options: preset })
+    });
+    if (!res.ok) throw new Error(`Failed to save preset: ${res.statusText}`);
 }
 
 // Get all presets
 export async function getPresets(): Promise<BoostWordPreset[]> {
-    const result = await invoke<string>('get_presets');
-    return JSON.parse(result);
+    const res = await fetch('/api/presets');
+    if (!res.ok) throw new Error(`Failed to load presets: ${res.statusText}`);
+    const list = await res.json();
+    // Backend stores the full preset object in options
+    return list.map((p: { id: string; name: string; options: BoostWordPreset }) =>
+        p.options || { id: p.id, name: p.name, words: [], createdAt: '' }
+    );
 }
 
 // Delete a preset
 export async function deletePreset(id: string): Promise<void> {
-    await invoke('delete_preset', { id });
+    const res = await fetch(`/api/presets/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Failed to delete preset: ${res.statusText}`);
 }
 
 // Generate a unique ID for new presets

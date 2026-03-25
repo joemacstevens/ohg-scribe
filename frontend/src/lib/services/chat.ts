@@ -1,7 +1,5 @@
 // src/lib/services/chat.ts
 // Service for transcript interrogation chat
-
-import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptResult } from '../types';
 
 export interface ChatMessage {
@@ -48,17 +46,6 @@ ${formattedTranscript}`;
 }
 
 /**
- * Get the Anthropic API key from settings.
- */
-async function getAnthropicKey(): Promise<string | null> {
-    try {
-        return await invoke<string | null>('get_anthropic_key');
-    } catch {
-        return null;
-    }
-}
-
-/**
  * Send a chat message grounded in the transcript.
  * Takes the full conversation history for multi-turn context.
  */
@@ -67,11 +54,6 @@ export async function sendChatMessage(
     transcript: TranscriptResult,
     conversationHistory: ChatMessage[]
 ): Promise<string> {
-    const apiKey = await getAnthropicKey();
-    if (!apiKey) {
-        throw new Error('Anthropic API key not found. Please set it in Settings.');
-    }
-
     const systemPrompt = buildTranscriptSystemPrompt(transcript);
 
     // Build messages array: all previous messages + new user message
@@ -86,11 +68,12 @@ export async function sendChatMessage(
         },
     ];
 
-    const response = await invoke<string>('chat_with_claude', {
-        apiKey,
-        systemPrompt,
-        messages,
+    const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_prompt: systemPrompt, messages }),
     });
-
-    return response;
+    if (!res.ok) throw new Error(`Chat request failed: ${res.statusText}`);
+    const data = await res.json();
+    return data.text;
 }

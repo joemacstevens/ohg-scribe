@@ -401,46 +401,17 @@ export async function generateWordDocument(
     }
 }
 
-// Save document to file, with auto-increment if file exists
-export async function saveDocument(
-    buffer: Uint8Array,
-    outputPath: string
-): Promise<string> {  // Now returns the actual path used
-    try {
-        console.log('Importing @tauri-apps/plugin-fs...');
-        const { writeFile, exists } = await import('@tauri-apps/plugin-fs');
-
-        // Check if file exists and find a unique name
-        let finalPath = outputPath;
-        let counter = 1;
-
-        while (await exists(finalPath)) {
-            // Extract base path and extension
-            const lastDotIndex = outputPath.lastIndexOf('.');
-            const basePath = lastDotIndex > 0 ? outputPath.slice(0, lastDotIndex) : outputPath;
-            const extension = lastDotIndex > 0 ? outputPath.slice(lastDotIndex) : '';
-
-            // Remove any existing counter suffix (e.g., "_1", "_2")
-            const baseWithoutCounter = basePath.replace(/_\d+$/, '');
-
-            finalPath = `${baseWithoutCounter}_${counter}${extension}`;
-            counter++;
-
-            // Safety limit to prevent infinite loop
-            if (counter > 100) {
-                throw new Error('Too many files with the same name');
-            }
-        }
-
-        console.log('Calling writeFile with path:', finalPath, 'buffer size:', buffer.length);
-        await writeFile(finalPath, buffer);
-        console.log('File written successfully!');
-
-        return finalPath;
-    } catch (error) {
-        console.error('Error saving document:', error);
-        throw new Error(`Failed to save document: ${error instanceof Error ? error.message : String(error)}`);
-    }
+// Trigger browser download of a docx buffer
+export function saveDocument(buffer: Uint8Array, filename: string): void {
+    const blob = new Blob([buffer.buffer as ArrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.endsWith('.docx') ? filename : `${filename}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 // Parse HTML string to Docx paragraphs

@@ -188,18 +188,14 @@ export async function generateMinutesPDF(
 }
 
 /**
- * Save PDF to file using Tauri fs
+ * Trigger browser download of a PDF buffer.
  */
-export async function savePDF(
-    buffer: Uint8Array,
-    outputPath: string
-): Promise<string> {
-    const { writeFile } = await import('@tauri-apps/plugin-fs');
-    const { invoke } = await import('@tauri-apps/api/core');
-
-    // Check if file exists and get unique path
-    const actualPath = await invoke<string>('get_unique_path', { path: outputPath });
-
-    await writeFile(actualPath, buffer);
-    return actualPath;
+export function savePDF(buffer: Uint8Array, filename: string): void {
+    const blob = new Blob([buffer.buffer as ArrayBuffer], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
 }

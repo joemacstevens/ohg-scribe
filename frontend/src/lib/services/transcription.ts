@@ -1,22 +1,5 @@
 // src/lib/services/transcription.ts
-import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptionOptions, TranscriptResult, TranscriptSegment } from '../types';
-
-export interface ConversionResult {
-    output_path: string;
-    temp_dir: string;
-}
-
-export interface RustTranscriptionOptions {
-    max_speakers: number | null;  // null = auto (1-10), number = max speakers
-    boost_words: string[];
-    include_summary: boolean;
-    detect_topics: boolean;
-    analyze_sentiment: boolean;
-    extract_key_phrases: boolean;  // auto_highlights in AssemblyAI
-    speaker_label_mode: string;    // 'generic' | 'auto-names' | 'known-names' | 'interview' | etc.
-    speaker_values: string[];      // Names or custom roles from user input
-}
 
 export interface TranscriptResponse {
     id: string;
@@ -50,116 +33,108 @@ export interface SentimentResult {
     speaker?: string;
 }
 
-// Settings commands
-export async function getApiKey(): Promise<string | null> {
-    return await invoke<string | null>('get_api_key');
+/**
+ * Get the AssemblyAI API key from the server.
+ * Used by the browser to upload audio directly to AssemblyAI,
+ * bypassing the gateway for large file transfers.
+ */
+export async function getAssemblyAIKey(): Promise<string> {
+    const res = await fetch('/api/transcription/key');
+    if (!res.ok) throw new Error('Could not retrieve AssemblyAI key from server');
+    const data = await res.json();
+    return data.key;
 }
 
-export async function setApiKey(apiKey: string): Promise<void> {
-    return await invoke('set_api_key', { apiKey });
+/**
+ * Upload audio directly to AssemblyAI from the browser.
+ * Uses the server-issued key.  Returns the upload URL.
+ */
+export async function uploadAudio(file: File): Promise<string> {
+    const apiKey = await getAssemblyAIKey();
+    const res = await fetch('https://api.assemblyai.com/v2/upload', {
+        method: 'POST',
+        headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/octet-stream',
+        },
+        body: file,
+    });
+    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+    const data = await res.json();
+    return data.upload_url;
 }
 
-export async function deleteApiKey(): Promise<void> {
-    return await invoke('delete_api_key');
-}
-
-// OpenAI key commands
-export async function getOpenAIKey(): Promise<string | null> {
-    return await invoke<string | null>('get_openai_key');
-}
-
-export async function setOpenAIKey(apiKey: string): Promise<void> {
-    return await invoke('set_openai_key', { apiKey });
-}
-
-// Anthropic key commands
-export async function getAnthropicKey(): Promise<string | null> {
-    return await invoke<string | null>('get_anthropic_key');
-}
-
-export async function setAnthropicKey(apiKey: string): Promise<void> {
-    return await invoke('set_anthropic_key', { apiKey });
-}
-
-// FFmpeg conversion
-export async function convertToAudio(inputPath: string): Promise<ConversionResult> {
-    return await invoke<ConversionResult>('convert_to_audio', { inputPath });
-}
-
-export async function cleanupTempDir(tempDir: string): Promise<void> {
-    return await invoke('cleanup_temp_dir', { tempDir });
-}
-
-// AssemblyAI API
-export async function uploadAudio(filePath: string, apiKey: string): Promise<string> {
-    return await invoke<string>('upload_audio', { filePath, apiKey });
-}
-
+/**
+ * Submit a transcription job via the backend (backend holds the key server-side).
+ * Returns the AssemblyAI transcript ID.
+ */
 export async function submitTranscription(
-    uploadUrl: string,
-    apiKey: string,
+    audioUrl: string,
+    filename: string,
     options: TranscriptionOptions
 ): Promise<string> {
-    // Parse speaker values from comma-separated input
     const speakerValues = options.speakerNamesInput
         ? options.speakerNamesInput.split(',').map(s => s.trim()).filter(s => s.length > 0)
         : [];
 
-    const rustOptions: RustTranscriptionOptions = {
-        max_speakers: options.speakerCount === 'auto' ? null : options.speakerCount,
-        boost_words: options.boostWords,
-        include_summary: options.includeSummary,
-        detect_topics: options.detectTopics,
-        analyze_sentiment: options.analyzeSentiment,
-        extract_key_phrases: options.extractKeyPhrases,
-        speaker_label_mode: options.speakerLabelMode,
-        speaker_values: speakerValues
-    };
-    return await invoke<string>('submit_transcription', { uploadUrl, apiKey, options: rustOptions });
+    const res = await fetch('/api/transcription/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            audio_url: audioUrl,
+            filename,
+            options: {
+                max_speakers: options.speakerCount === 'auto' ? null : options.speakerCount,
+                boost_words: options.boostWords,
+                include_summary: options.includeSummary,
+                detect_topics: options.detectTopics,
+                analyze_sentiment: options.analyzeSentiment,
+                extract_key_phrases: options.extractKeyPhrases,
+                speaker_label_mode: options.speakerLabelMode,
+                speaker_values: speakerValues,
+            }
+        })
+    });
+    if (!res.ok) throw new Error(`Submit failed: ${res.statusText}`);
+    const data = await res.json();
+    return data.id;
 }
 
-export async function pollTranscription(
-    transcriptId: string,
-    apiKey: string
-): Promise<TranscriptResponse> {
-    return await invoke<TranscriptResponse>('poll_transcription', { transcriptId, apiKey });
+/**
+ * Poll the backend for transcript status.
+ * Backend proxies to AssemblyAI.
+ */
+export async function pollTranscription(transcriptId: string): Promise<TranscriptResponse> {
+    const res = await fetch(`/api/transcription/${transcriptId}`);
+    if (!res.ok) throw new Error(`Poll failed: ${res.statusText}`);
+    return res.json();
 }
 
-// Poll until transcription is complete
+/** Poll until transcription completes or times out. */
 export async function waitForTranscription(
     transcriptId: string,
-    apiKey: string,
     onProgress?: (status: string) => void,
     initialDelayMs: number = 5000,
     pollIntervalMs: number = 3000,
-    timeoutMs: number = 30 * 60 * 1000 // 30 minutes
+    timeoutMs: number = 30 * 60 * 1000
 ): Promise<TranscriptResponse> {
     const startTime = Date.now();
-
-    // Initial delay
     await new Promise(resolve => setTimeout(resolve, initialDelayMs));
 
     while (Date.now() - startTime < timeoutMs) {
-        const response = await pollTranscription(transcriptId, apiKey);
-
+        const response = await pollTranscription(transcriptId);
         onProgress?.(response.status);
 
-        if (response.status === 'completed') {
-            return response;
-        }
-
+        if (response.status === 'completed') return response;
         if (response.status === 'error') {
             throw new Error(response.error || 'Transcription failed');
         }
-
-        // Wait before next poll
         await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
     }
-
     throw new Error('Transcription timed out');
 }
 
-// Convert raw API response to our segment format
+/** Convert raw AssemblyAI response to our segment format. */
 export function parseTranscriptResponse(
     response: TranscriptResponse,
     speakerNames: string[]
@@ -167,29 +142,23 @@ export function parseTranscriptResponse(
     const segments: TranscriptSegment[] = [];
 
     if (response.utterances) {
-        // Map speaker labels to names
         const speakerMap: Record<string, string> = {};
         let speakerIndex = 0;
 
         for (const utterance of response.utterances) {
             if (!speakerMap[utterance.speaker]) {
-                if (speakerIndex < speakerNames.length && speakerNames[speakerIndex]) {
-                    speakerMap[utterance.speaker] = speakerNames[speakerIndex];
-                } else {
-                    speakerMap[utterance.speaker] = utterance.speaker;
-                }
+                speakerMap[utterance.speaker] = (speakerIndex < speakerNames.length && speakerNames[speakerIndex])
+                    ? speakerNames[speakerIndex]
+                    : utterance.speaker;
                 speakerIndex++;
             }
 
-            // Find sentiment for this segment if available
             let sentiment: 'positive' | 'neutral' | 'negative' | undefined;
             if (response.sentiment_analysis_results) {
-                const sentimentResult = response.sentiment_analysis_results.find(
+                const sr = response.sentiment_analysis_results.find(
                     s => s.start >= utterance.start && s.end <= utterance.end
                 );
-                if (sentimentResult) {
-                    sentiment = sentimentResult.sentiment.toLowerCase() as 'positive' | 'neutral' | 'negative';
-                }
+                if (sr) sentiment = sr.sentiment.toLowerCase() as 'positive' | 'neutral' | 'negative';
             }
 
             segments.push({
@@ -202,13 +171,11 @@ export function parseTranscriptResponse(
         }
     }
 
-    // Parse topics
     const topics: { label: string; relevance: number }[] = [];
     if (response.iab_categories_result?.summary) {
         for (const [label, relevance] of Object.entries(response.iab_categories_result.summary)) {
             topics.push({ label, relevance: relevance * 100 });
         }
-        // Sort by relevance
         topics.sort((a, b) => b.relevance - a.relevance);
     }
 

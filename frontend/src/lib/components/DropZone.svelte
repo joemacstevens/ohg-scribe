@@ -1,11 +1,8 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-  import { open } from "@tauri-apps/plugin-dialog";
-  import { ACCEPTED_EXTENSIONS, extractFilename } from "../types";
+  import { ACCEPTED_EXTENSIONS } from "../types";
 
   interface Props {
-    onFilesDropped: (files: { filename: string; filepath: string }[]) => void;
+    onFilesDropped: (files: { filename: string; file: File }[]) => void;
     disabled?: boolean;
     compact?: boolean;
   }
@@ -13,44 +10,20 @@
   let { onFilesDropped, disabled = false, compact = false }: Props = $props();
 
   let isDragOver = $state(false);
-  let unlisten: UnlistenFn | null = null;
+  let fileInput: HTMLInputElement | null = $state(null);
 
-  onMount(async () => {
-    // Listen for Tauri's native file drop events
-    unlisten = await listen<{ paths: string[] }>(
-      "tauri://drag-drop",
-      (event) => {
-        if (disabled) return;
-
-        const paths = event.payload.paths;
-        const validFiles = paths
-          .filter((path) => {
-            const ext = "." + path.split(".").pop()?.toLowerCase();
-            return ACCEPTED_EXTENSIONS.includes(ext);
-          })
-          .map((path) => ({
-            filename: extractFilename(path),
-            filepath: path,
-          }));
-
-        if (validFiles.length > 0) {
-          onFilesDropped(validFiles);
-        }
-
-        isDragOver = false;
-      },
-    );
-  });
-
-  onDestroy(() => {
-    unlisten?.();
-  });
+  function filterFiles(fileList: FileList): { filename: string; file: File }[] {
+    return Array.from(fileList)
+      .filter((f) => {
+        const ext = "." + f.name.split(".").pop()?.toLowerCase();
+        return ACCEPTED_EXTENSIONS.includes(ext);
+      })
+      .map((f) => ({ filename: f.name, file: f }));
+  }
 
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
-    if (!disabled) {
-      isDragOver = true;
-    }
+    if (!disabled) isDragOver = true;
   }
 
   function handleDragLeave(e: DragEvent) {
@@ -60,37 +33,35 @@
 
   function handleDrop(e: DragEvent) {
     e.preventDefault();
-    // Let Tauri's native handler take care of it
     isDragOver = false;
+    if (disabled || !e.dataTransfer?.files.length) return;
+    const valid = filterFiles(e.dataTransfer.files);
+    if (valid.length > 0) onFilesDropped(valid);
   }
 
-  async function handleClick() {
+  function handleClick() {
     if (disabled) return;
+    fileInput?.click();
+  }
 
-    try {
-      const selected = await open({
-        multiple: true,
-        filters: [
-          {
-            name: "Media Files",
-            extensions: ACCEPTED_EXTENSIONS.map((ext) => ext.slice(1)), // Remove leading dot
-          },
-        ],
-      });
-
-      if (selected) {
-        const paths = Array.isArray(selected) ? selected : [selected];
-        const files = paths.map((path) => ({
-          filename: extractFilename(path),
-          filepath: path,
-        }));
-        onFilesDropped(files);
-      }
-    } catch (e) {
-      console.error("Failed to open file dialog:", e);
-    }
+  function handleInputChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const valid = filterFiles(input.files);
+    if (valid.length > 0) onFilesDropped(valid);
+    input.value = ""; // Reset so same file can be chosen again
   }
 </script>
+
+<!-- Hidden native file input -->
+<input
+  bind:this={fileInput}
+  type="file"
+  multiple
+  accept={ACCEPTED_EXTENSIONS.join(",")}
+  onchange={handleInputChange}
+  style="display:none"
+/>
 
 <div
   class="drop-zone"

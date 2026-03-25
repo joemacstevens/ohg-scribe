@@ -1,12 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
-  import { invoke } from "@tauri-apps/api/core";
   import DropZone from "$lib/components/DropZone.svelte";
   import FileQueue from "$lib/components/FileQueue.svelte";
   import OptionsPanel from "$lib/components/OptionsPanel.svelte";
   import SettingsModal from "$lib/components/SettingsModal.svelte";
-  // Removed HistoryPanel import
   import Toast from "$lib/components/Toast.svelte";
   import SpeakerControls from "$lib/components/SpeakerControls.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
@@ -17,14 +14,6 @@
   import { workspaceStore } from "$lib/stores/workspace";
   import type { FileJob, TranscriptionOptions } from "$lib/types";
   import {
-    getApiKey,
-    setApiKey as saveApiKey,
-    getOpenAIKey,
-    setOpenAIKey as saveOpenAIKey,
-    getAnthropicKey,
-    setAnthropicKey as saveAnthropicKey,
-    convertToAudio,
-    cleanupTempDir,
     uploadAudio,
     submitTranscription,
     waitForTranscription,
@@ -35,14 +24,9 @@
     saveDocument,
   } from "$lib/services/docx-export";
   import { saveToHistory, createHistoryEntry } from "$lib/services/history";
-  import { openPath } from "@tauri-apps/plugin-opener";
 
   let settingsOpen = $state(false);
-  // Removed historyOpen state
 
-  let apiKey = $state("");
-  let openaiKey = $state("");
-  let anthropicKey = $state("");
   let jobs: FileJob[] = $state([]);
   let options: TranscriptionOptions = $state({
     speakerCount: "auto",
@@ -63,6 +47,9 @@
   }[] = $state([]);
   let isProcessing = $state(false);
 
+  // Map from jobId -> File (so we can upload from the browser)
+  const fileMap = new Map<string, File>();
+
   queueStore.subscribe((value) => {
     jobs = value;
   });
@@ -71,39 +58,27 @@
     options = value;
   });
 
-  onMount(async () => {
-    // Load API keys from storage
-    try {
-      const storedKey = await getApiKey();
-      if (storedKey) {
-        apiKey = storedKey;
-      }
-      const storedOpenAIKey = await getOpenAIKey();
-      if (storedOpenAIKey) {
-        openaiKey = storedOpenAIKey;
-      }
-      const storedAnthropicKey = await getAnthropicKey();
-      if (storedAnthropicKey) {
-        anthropicKey = storedAnthropicKey;
-      }
-    } catch (e) {
-      console.error("Failed to load API keys:", e);
-    }
-  });
-
-  function handleFilesDropped(files: { filename: string; filepath: string }[]) {
-    // Ensure we are in "New" mode when files are dropped
+  function handleFilesDropped(files: { filename: string; file: File }[]) {
     if ($workspaceStore.viewMode === "workspace") {
       workspaceStore.resetToNew();
     }
 
-    queueStore.addFiles(files);
+    // Convert to FileJob format (no filepath needed for web)
+    const jobFiles = files.map(f => ({ filename: f.filename, filepath: f.filename }));
+    queueStore.addFiles(jobFiles);
+
+    // Store the actual File objects keyed by filename for later use
+    files.forEach(f => {
+      // The job ID is set by queueStore — find the newly added jobs
+      // We use filename as a proxy until the job is processed
+      fileMap.set(f.filename, f.file);
+    });
+
     showToast(
       `Added ${files.length} file${files.length > 1 ? "s" : ""} to queue`,
       "info",
     );
 
-    // Start processing if not already processing
     if (!isProcessing) {
       processQueue();
     }
@@ -111,21 +86,11 @@
 
   async function processQueue() {
     if (isProcessing) return;
-
-    // Check for API key
-    if (!apiKey) {
-      showToast("Please add your AssemblyAI API key in Settings", "error");
-      settingsOpen = true;
-      return;
-    }
-
     isProcessing = true;
 
-    // Process files one at a time
     while (true) {
       const queuedJob = jobs.find((j) => j.status === "queued");
       if (!queuedJob) break;
-
       await processFile(queuedJob.id);
     }
 
@@ -136,40 +101,28 @@
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
 
-    let tempDir: string | undefined;
+    // Get the File object (keyed by filename, as set during drop)
+    const file = fileMap.get(job.filename);
+    if (!file) {
+      queueStore.updateJob(jobId, { status: 'error', error: 'File reference lost — please re-add the file.' });
+      return;
+    }
 
     try {
-      // Step 1: Convert to audio
-      queueStore.updateJob(jobId, { status: "converting", progress: 10 });
+      // Step 1: Upload directly from browser to AssemblyAI
+      queueStore.updateJob(jobId, { status: "uploading", progress: 20 });
+      const uploadUrl = await uploadAudio(file);
 
-      const conversionResult = await convertToAudio(job.filepath);
-      tempDir = conversionResult.temp_dir;
-      const audioPath = conversionResult.output_path;
+      queueStore.updateJob(jobId, { progress: 40 });
 
-      queueStore.updateJob(jobId, { progress: 25 });
+      // Step 2: Submit transcription (backend holds the API key)
+      queueStore.updateJob(jobId, { status: "transcribing", progress: 45 });
+      const transcriptId = await submitTranscription(uploadUrl, job.filename, options);
 
-      // Step 2: Upload to AssemblyAI
-      queueStore.updateJob(jobId, { status: "uploading", progress: 30 });
-
-      const uploadUrl = await uploadAudio(audioPath, apiKey);
-
-      queueStore.updateJob(jobId, { progress: 45 });
-
-      // Step 3: Submit transcription
-      queueStore.updateJob(jobId, { status: "transcribing", progress: 50 });
-
-      const transcriptId = await submitTranscription(
-        uploadUrl,
-        apiKey,
-        options,
-      );
-
-      // Step 4: Wait for completion
+      // Step 3: Wait for completion (polls backend)
       const response = await waitForTranscription(
         transcriptId,
-        apiKey,
         (status) => {
-          // Update progress based on status
           if (status === "processing") {
             queueStore.updateJob(jobId, { progress: 65 });
           }
@@ -178,30 +131,15 @@
 
       queueStore.updateJob(jobId, { progress: 80 });
 
-      // Step 5: Parse transcript and generate Word doc
+      // Step 4: Parse transcript
       queueStore.updateJob(jobId, { status: "generating", progress: 85 });
-
-      console.log("Parsing transcript response...");
-      console.log(
-        "Response utterances count:",
-        response.utterances?.length || 0,
-      );
-
       const speakerNames = options.speakerNamesInput
-        ? options.speakerNamesInput
-            .split(",")
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0)
+        ? options.speakerNamesInput.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
         : [];
 
       const transcriptResult = parseTranscriptResponse(response, speakerNames);
 
-      console.log(
-        "Parsed transcript segments:",
-        transcriptResult.segments.length,
-      );
-
-      console.log("Generating Word document...");
+      // Step 5: Generate and download Word document
       const docBuffer = await generateWordDocument(transcriptResult, {
         filename: job.filename,
         transcribedDate: new Date(),
@@ -210,57 +148,34 @@
         includeSentiment: options.analyzeSentiment,
       });
 
-      console.log("Word document generated, buffer size:", docBuffer.length);
-
-      // Step 6: Save document (auto-increments if file exists)
-      const requestedPath = job.filepath.replace(
-        /\.[^/.]+$/,
-        "_transcript.docx",
-      );
-      console.log("Saving document to:", requestedPath);
-
-      const actualPath = await saveDocument(docBuffer, requestedPath);
-      console.log("Document saved successfully to:", actualPath);
+      const outputFilename = job.filename.replace(/\.[^/.]+$/, "_transcript.docx");
+      saveDocument(docBuffer, outputFilename); // triggers browser download
 
       queueStore.updateJob(jobId, {
         status: "complete",
         progress: 100,
-        outputPath: actualPath,
+        outputPath: outputFilename,
       });
 
-      // Save to history
+      // Step 6: Save to history
       try {
         const historyEntry = createHistoryEntry(
           job.filename,
-          job.filepath,
+          job.filename,
           transcriptResult,
           {
-            speakerNames: speakerNames,
+            speakerNames,
             includedSummary: options.includeSummary,
             includedTopics: options.detectTopics,
             includedSentiment: options.analyzeSentiment,
           },
         );
 
-        // Store audio file for playback in transcript view
-        try {
-          const storedAudioPath = await invoke<string>("store_audio_file", {
-            sourcePath: audioPath,
-            historyId: historyEntry.id,
-          });
-          historyEntry.audioPath = storedAudioPath;
-          console.log("Audio stored at:", storedAudioPath);
-        } catch (audioError) {
-          console.warn("Failed to store audio for playback:", audioError);
-        }
-
         await saveToHistory(historyEntry);
-        console.log("Saved to history:", historyEntry.id);
 
-        // Store historyId in job so View button can navigate
         queueStore.updateJob(jobId, {
           historyId: historyEntry.id,
-          transcriptResult: transcriptResult, // Attach for Workspace access
+          transcriptResult: transcriptResult,
         } as any);
       } catch (historyError) {
         console.warn("Failed to save to history:", historyError);
@@ -278,29 +193,14 @@
         "error",
       );
     } finally {
-      // Clean up temp directory
-      if (tempDir) {
-        try {
-          await cleanupTempDir(tempDir);
-        } catch (e) {
-          console.warn("Failed to cleanup temp dir:", e);
-        }
-      }
+      // Clean up file reference
+      fileMap.delete(job.filename);
     }
   }
 
-  async function handleOpenFile(path: string) {
-    console.log("Attempting to open file:", path);
-    try {
-      await openPath(path);
-      console.log("File opened successfully");
-    } catch (e) {
-      console.error("Failed to open file:", path, "Error:", e);
-      showToast(
-        `Failed to open file: ${e instanceof Error ? e.message : String(e)}`,
-        "error",
-      );
-    }
+  function handleOpenFile(path: string) {
+    // In web, there's no local file system access — show a toast
+    showToast("Document was downloaded to your Downloads folder", "info");
   }
 
   function handleRetry(id: string) {
@@ -314,35 +214,15 @@
     }
   }
 
+  // Settings modal: in web app, API keys are server-managed.
+  // The modal is kept for UX consistency but we don't store keys in the browser.
   async function handleSaveApiKeys(
-    assemblyaiKeyVal: string,
-    openaiKeyVal: string,
-    anthropicKeyVal: string,
+    _assemblyaiKeyVal: string,
+    _openaiKeyVal: string,
+    _anthropicKeyVal: string,
   ) {
-    try {
-      await saveApiKey(assemblyaiKeyVal);
-      apiKey = assemblyaiKeyVal;
-
-      if (openaiKeyVal) {
-        await saveOpenAIKey(openaiKeyVal);
-      }
-      openaiKey = openaiKeyVal;
-
-      if (anthropicKeyVal) {
-        await saveAnthropicKey(anthropicKeyVal);
-      }
-      anthropicKey = anthropicKeyVal;
-
-      showToast("Settings saved", "success");
-
-      // Start processing if there are queued files
-      if (!isProcessing && jobs.some((j) => j.status === "queued")) {
-        processQueue();
-      }
-    } catch (e) {
-      console.error("Failed to save API keys:", e);
-      showToast("Failed to save settings", "error");
-    }
+    showToast("API keys are managed server-side in this deployment", "info");
+    settingsOpen = false;
   }
 
   function showToast(
@@ -358,7 +238,7 @@
   }
 
   function handleViewTranscript(job: FileJob) {
-    if (job.status === "complete" && job.outputPath) {
+    if (job.status === "complete") {
       if ((job as any).transcriptResult) {
         workspaceStore.openWorkspace(
           (job as any).transcriptResult,
@@ -366,10 +246,7 @@
           job.filename,
         );
       } else {
-        showToast(
-          "Please re-process file to open in Workspace (Persistence pending)",
-          "info",
-        );
+        showToast("Transcript not available", "info");
       }
     } else {
       showToast("Transcript not available", "error");
@@ -453,7 +330,7 @@
               onViewTranscript={handleViewTranscript}
             />
           {/if}
-          <OptionsPanel openaiApiKey={openaiKey} />
+          <OptionsPanel />
         </div>
       </div>
     {/if}
@@ -463,9 +340,9 @@
     isOpen={settingsOpen}
     onClose={() => (settingsOpen = false)}
     onSave={handleSaveApiKeys}
-    currentAssemblyAIKey={apiKey}
-    currentOpenAIKey={openaiKey}
-    currentAnthropicKey={anthropicKey}
+    currentAssemblyAIKey=""
+    currentOpenAIKey=""
+    currentAnthropicKey=""
   />
 
   {#each toasts as toast (toast.id)}

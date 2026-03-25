@@ -1,6 +1,5 @@
 // src/lib/stores/vocabulary.ts
 import { writable, get } from 'svelte/store';
-import { invoke } from '@tauri-apps/api/core';
 import type { Vocabulary, VocabularyCategory, VocabularyState, VocabularyData } from '../types/vocabulary';
 
 function createVocabularyStore() {
@@ -18,7 +17,9 @@ function createVocabularyStore() {
         async load() {
             update(s => ({ ...s, loading: true, error: null }));
             try {
-                const data = await invoke<VocabularyData>('load_vocabularies');
+                const res = await fetch('/api/vocabularies');
+                if (!res.ok) throw new Error(`Failed to load vocabularies: ${res.statusText}`);
+                const data: VocabularyData = await res.json();
                 set({
                     categories: data.categories,
                     vocabularies: data.vocabularies,
@@ -44,15 +45,11 @@ function createVocabularyStore() {
         getTermsForPresets(ids: string[]): string[] {
             const state = get({ subscribe });
             const terms: string[] = [];
-
             ids.forEach(id => {
                 const vocab = state.vocabularies.find(v => v.id === id);
-                if (vocab) {
-                    terms.push(...vocab.terms);
-                }
+                if (vocab) terms.push(...vocab.terms);
             });
-
-            return [...new Set(terms)]; // Deduplicate
+            return [...new Set(terms)];
         },
 
         // Search vocabularies by name
@@ -68,28 +65,39 @@ function createVocabularyStore() {
         getByCategory(): Map<VocabularyCategory, Vocabulary[]> {
             const state = get({ subscribe });
             const result = new Map<VocabularyCategory, Vocabulary[]>();
-
             for (const category of state.categories) {
                 const vocabs = state.vocabularies.filter(v => v.category === category.id);
                 result.set(category, vocabs);
             }
-
             return result;
         },
 
         // Create a new vocabulary
         async create(name: string, category: string, terms: string[]): Promise<Vocabulary> {
-            const newVocab = await invoke<Vocabulary>('create_vocabulary', { name, category, terms });
-            update(s => ({
-                ...s,
-                vocabularies: [...s.vocabularies, newVocab]
-            }));
+            const res = await fetch('/api/vocabularies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, category_id: category, terms })
+            });
+            if (!res.ok) throw new Error(`Failed to create vocabulary: ${res.statusText}`);
+            const newVocab: Vocabulary = await res.json();
+            update(s => ({ ...s, vocabularies: [...s.vocabularies, newVocab] }));
             return newVocab;
         },
 
         // Update an existing vocabulary
         async updateVocab(id: string, updates: { name?: string; category?: string; terms?: string[] }): Promise<Vocabulary> {
-            const updated = await invoke<Vocabulary>('update_vocabulary', { id, ...updates });
+            const res = await fetch(`/api/vocabularies/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: updates.name,
+                    category_id: updates.category,
+                    terms: updates.terms
+                })
+            });
+            if (!res.ok) throw new Error(`Failed to update vocabulary: ${res.statusText}`);
+            const updated: Vocabulary = await res.json();
             update(s => ({
                 ...s,
                 vocabularies: s.vocabularies.map(v => v.id === id ? updated : v)
@@ -99,7 +107,8 @@ function createVocabularyStore() {
 
         // Delete a vocabulary
         async delete(id: string): Promise<void> {
-            await invoke('delete_vocabulary', { id });
+            const res = await fetch(`/api/vocabularies/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`Failed to delete vocabulary: ${res.statusText}`);
             update(s => ({
                 ...s,
                 vocabularies: s.vocabularies.filter(v => v.id !== id)
@@ -108,34 +117,46 @@ function createVocabularyStore() {
 
         // Duplicate a system vocabulary to user vocabularies
         async duplicate(id: string, newName: string): Promise<Vocabulary> {
-            const duplicated = await invoke<Vocabulary>('duplicate_vocabulary', { id, newName });
-            update(s => ({
-                ...s,
-                vocabularies: [...s.vocabularies, duplicated]
-            }));
+            const res = await fetch(`/api/vocabularies/${id}/duplicate`, { method: 'POST' });
+            if (!res.ok) throw new Error(`Failed to duplicate vocabulary: ${res.statusText}`);
+            const duplicated: Vocabulary = await res.json();
+            update(s => ({ ...s, vocabularies: [...s.vocabularies, duplicated] }));
             return duplicated;
         },
 
         // Create a new category
         async createCategory(name: string): Promise<VocabularyCategory> {
-            const category = await invoke<VocabularyCategory>('create_vocabulary_category', { name });
-            update(s => ({
-                ...s,
-                categories: [...s.categories, category]
-            }));
+            const res = await fetch('/api/vocabularies/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (!res.ok) throw new Error(`Failed to create category: ${res.statusText}`);
+            const category: VocabularyCategory = await res.json();
+            update(s => ({ ...s, categories: [...s.categories, category] }));
             return category;
         },
 
         // Export all user vocabularies as JSON
         async exportAll(): Promise<string> {
-            return await invoke<string>('export_vocabularies');
+            const res = await fetch('/api/vocabularies/export');
+            if (!res.ok) throw new Error(`Failed to export vocabularies: ${res.statusText}`);
+            const data = await res.json();
+            return JSON.stringify(data);
         },
 
         // Import vocabularies from JSON
         async importVocabs(json: string): Promise<number> {
-            const count = await invoke<number>('import_vocabularies', { json });
-            await this.load(); // Reload to get fresh data
-            return count;
+            const parsed = JSON.parse(json);
+            const res = await fetch('/api/vocabularies/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed)
+            });
+            if (!res.ok) throw new Error(`Failed to import vocabularies: ${res.statusText}`);
+            const data = await res.json();
+            await this.load();
+            return data.imported;
         }
     };
 }

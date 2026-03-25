@@ -1,26 +1,23 @@
 <script lang="ts">
-    import { invoke } from "@tauri-apps/api/core";
-    import { open } from "@tauri-apps/plugin-dialog";
     import { vocabularyStore } from "$lib/stores/vocabulary";
-    import { extractFilename } from "$lib/types";
 
     interface Props {
         isOpen: boolean;
         onClose: () => void;
-        openaiApiKey: string;
     }
 
-    let { isOpen, onClose, openaiApiKey }: Props = $props();
+    let { isOpen, onClose }: Props = $props();
 
     type Step = "upload" | "processing" | "review";
 
     let currentStep = $state<Step>("upload");
-    let selectedFile = $state<{ path: string; name: string } | null>(null);
+    let selectedFile = $state<File | null>(null);
     let extractedData = $state<ExtractedVocabulary | null>(null);
     let selectedTerms = $state<Set<string>>(new Set());
     let vocabularyName = $state("");
     let error = $state<string | null>(null);
     let processingStatus = $state("");
+    let fileInput: HTMLInputElement | null = $state(null);
 
     interface ExtractedCategory {
         name: string;
@@ -33,56 +30,47 @@
     }
 
     async function handleBrowse() {
-        const selected = await open({
-            multiple: false,
-            filters: [
-                {
-                    name: "Documents",
-                    extensions: ["docx", "pdf", "txt", "md"],
-                },
-            ],
-        });
+        fileInput?.click();
+    }
 
-        if (selected && typeof selected === "string") {
-            const name = extractFilename(selected);
-            selectedFile = { path: selected, name };
+    function handleFileChange(e: Event) {
+        const input = e.target as HTMLInputElement;
+        if (input.files?.[0]) {
+            selectedFile = input.files[0];
         }
     }
 
     async function startExtraction() {
         if (!selectedFile) return;
-        if (!openaiApiKey) {
-            error = "OpenAI API key not configured. Please add it in Settings.";
-            return;
-        }
 
         currentStep = "processing";
         error = null;
 
         try {
-            // Step 1: Extract text from document
-            processingStatus = "Reading document...";
-            const text = await invoke<string>("extract_document_text", {
-                path: selectedFile.path,
+            processingStatus = "Uploading and analyzing document...";
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            const res = await fetch('/api/vocabularies/extract-from-document', {
+                method: 'POST',
+                body: formData,
             });
 
-            // Step 2: Send to OpenAI for analysis
-            processingStatus = "Analyzing with AI...";
-            extractedData = await invoke<ExtractedVocabulary>(
-                "extract_vocabulary_terms",
-                {
-                    text,
-                    apiKey: openaiApiKey,
-                },
-            );
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || `Server error: ${res.statusText}`);
+            }
+
+            extractedData = await res.json();
 
             // Initialize all terms as selected
-            const allTerms = extractedData.categories.flatMap((c) => c.terms);
+            const allTerms = extractedData!.categories.flatMap((c) => c.terms);
             selectedTerms = new Set(allTerms);
 
             // Use suggested name or derive from filename
             vocabularyName =
-                extractedData.suggested_name ||
+                extractedData!.suggested_name ||
                 selectedFile.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
 
             currentStep = "review";
@@ -102,8 +90,7 @@
     }
 
     function selectAll() {
-        const allTerms =
-            extractedData?.categories.flatMap((c) => c.terms) || [];
+        const allTerms = extractedData?.categories.flatMap((c) => c.terms) || [];
         selectedTerms = new Set(allTerms);
     }
 
@@ -120,7 +107,6 @@
                 "my-vocabularies",
                 Array.from(selectedTerms),
             );
-
             handleClose();
         } catch (e) {
             error = e instanceof Error ? e.message : String(e);
@@ -146,6 +132,15 @@
         );
     }
 </script>
+
+<!-- Hidden file input for browser-native file selection -->
+<input
+    bind:this={fileInput}
+    type="file"
+    accept=".docx,.pdf,.txt,.md"
+    onchange={handleFileChange}
+    style="display:none"
+/>
 
 {#if isOpen}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
