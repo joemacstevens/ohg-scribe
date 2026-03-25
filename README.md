@@ -1,4 +1,4 @@
-# OHG Scribe
+# Launchpad Scribe
 
 A web application for transcribing audio and video files into polished Word documents. Built with SvelteKit (frontend) and FastAPI (backend), packaged as a single Docker container.
 
@@ -34,7 +34,7 @@ AssemblyAI accepts audio and video files directly (up to 5GB).
 ## Architecture
 
 ```
-ohg-scribe/
+launchpad-scribe/
 ├── frontend/                     # SvelteKit web app
 │   └── src/
 │       ├── routes/               # Pages
@@ -109,7 +109,7 @@ graph LR
 
 1. **Create `backend/.env`:**
 ```env
-DATABASE_URL=postgresql+psycopg://ohgscribe:ohgscribe@db:5432/ohgscribe
+DATABASE_URL=postgresql+psycopg://launchpadscribe:launchpadscribe@db:5432/launchpadscribe
 ASSEMBLYAI_API_KEY=your_key_here
 ANTHROPIC_API_KEY=your_key_here
 DEV_USER_EMAIL=you@example.com

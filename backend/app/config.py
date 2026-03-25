@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://ohgscribe:ohgscribe@localhost:5432/ohgscribe"
+    database_url: str = "postgresql+psycopg://launchpadscribe:launchpadscribe@localhost:5432/launchpadscribe"
 
     # API Keys (server-managed — never sent to client)
     assemblyai_api_key: str = ""

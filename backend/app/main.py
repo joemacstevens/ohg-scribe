@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="OHG Scribe API", lifespan=lifespan)
+app = FastAPI(title="Launchpad Scribe API", lifespan=lifespan)
 
 # ----- Auth -----
 
@@ -70,7 +70,7 @@ app.include_router(vocabularies.router, prefix=f"{API_PREFIX}/vocabularies", tag
 
 @app.get(f"{API_PREFIX}/health")
 def health_check():
-    return {"status": "ok", "service": "ohg-scribe"}
+    return {"status": "ok", "service": "launchpad-scribe"}
 
 
 @app.get(f"{API_PREFIX}/auth/me")

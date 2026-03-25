@@ -6,7 +6,7 @@ services:
     env_file:
       - backend/.env
     environment:
-      - DATABASE_URL=postgresql+psycopg://ohgscribe:ohgscribe@db:5432/ohgscribe
+      - DATABASE_URL=postgresql+psycopg://launchpadscribe:launchpadscribe@db:5432/launchpadscribe
       - STATIC_DIR=/app/frontend/dist
     depends_on:
       db:
@@ -15,13 +15,13 @@ services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_USER: ohgscribe
-      POSTGRES_PASSWORD: ohgscribe
-      POSTGRES_DB: ohgscribe
+      POSTGRES_USER: launchpadscribe
+      POSTGRES_PASSWORD: launchpadscribe
+      POSTGRES_DB: launchpadscribe
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ohgscribe"]
+      test: ["CMD-SHELL", "pg_isready -U launchpadscribe"]
       interval: 5s
       timeout: 5s
       retries: 5
