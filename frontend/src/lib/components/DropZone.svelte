@@ -153,11 +153,7 @@
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: linear-gradient(
-      135deg,
-      var(--magenta, #e91388) 0%,
-      var(--purple, #6b2d7b) 100%
-    );
+    background: var(--color-accent);
     display: flex;
     align-items: center;
     justify-content: center;

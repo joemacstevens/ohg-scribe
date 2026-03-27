@@ -358,11 +358,12 @@
                 style="width: {panelWidth}px"
                 transition:fly={{ x: 300, duration: 250 }}
             >
-                <div class="resize-handle" onmousedown={startResize}></div>
+                <div class="resize-handle" role="presentation" aria-hidden="true" onmousedown={startResize}></div>
                 <div class="panel-header">
                     <h3>Create Meeting Minutes</h3>
                     <button
                         class="btn-icon"
+                        aria-label="Close Meeting Minutes panel"
                         onclick={() => (showMeetingMinutes = false)}
                     >
                         <svg
@@ -400,11 +401,12 @@
                 style="width: {panelWidth}px"
                 transition:fly={{ x: 300, duration: 250 }}
             >
-                <div class="resize-handle" onmousedown={startResize}></div>
+                <div class="resize-handle" role="presentation" aria-hidden="true" onmousedown={startResize}></div>
                 <div class="panel-header">
                     <h3>💬 Ask the Transcript</h3>
                     <button
                         class="btn-icon"
+                        aria-label="Close Ask Transcript panel"
                         onclick={() => (showTranscriptChat = false)}
                     >
                         <svg
@@ -430,27 +432,24 @@
 
 <style>
     .workspace-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: var(--bg-secondary);
-        z-index: 100;
         display: flex;
         flex-direction: column;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
+        background: var(--color-bg-surface);
     }
 
     .workspace-header {
-        height: 64px;
-        background: var(--white);
-        border-bottom: 1px solid var(--border-color);
+        height: var(--header-height);
+        background: var(--color-header-bg);
+        border-bottom: 3px solid var(--color-accent);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 24px;
+        padding: 0 20px;
         flex-shrink: 0;
+        gap: 8px;
     }
 
     .header-left {
@@ -467,8 +466,8 @@
 
     .header-divider {
         width: 1px;
-        height: 24px;
-        background: var(--gray-200);
+        height: 20px;
+        background: var(--color-header-border);
         margin: 0 4px;
     }
 
@@ -478,87 +477,91 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        color: var(--text-secondary);
-        font-size: 14px;
-        font-weight: 500;
+        color: var(--color-header-text-secondary);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        font-family: var(--font-family);
         cursor: pointer;
-        padding: 6px 12px;
-        border-radius: 6px;
-        transition: all 0.2s;
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        transition: all var(--transition-fast);
     }
 
     .back-btn:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
+        background: var(--color-header-hover);
+        color: var(--color-header-text);
     }
 
     .btn-outline {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: white;
-        border: 1px solid var(--gray-300);
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--navy);
+        gap: 7px;
+        padding: 6px 12px;
+        background: var(--color-header-hover);
+        border: 1px solid var(--color-header-border);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        font-family: var(--font-family);
+        color: var(--color-header-text-secondary);
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--transition-fast);
     }
 
     .btn-outline:hover {
-        background: var(--gray-50);
-        border-color: var(--gray-400);
+        background: rgba(255,255,255,0.12);
+        color: var(--color-header-text);
+        border-color: rgba(255,255,255,0.2);
     }
 
     .btn-outline-active {
-        background: var(--lavender-light, #f5f0ff);
-        border-color: var(--purple, #7c3aed);
-        color: var(--purple, #7c3aed);
+        background: var(--color-accent-muted);
+        border-color: var(--color-accent);
+        color: var(--color-accent);
     }
 
     .btn-primary {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        background: linear-gradient(
-            135deg,
-            var(--magenta) 0%,
-            var(--purple) 100%
-        );
+        gap: 7px;
+        padding: 7px 16px;
+        background: var(--color-accent);
         border: none;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 600;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        font-family: var(--font-family);
         color: white;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--transition-fast);
+        box-shadow: 0 2px 8px var(--color-accent-glow);
     }
 
     .btn-primary:hover {
-        opacity: 0.9;
+        background: var(--color-accent-hover);
+        box-shadow: 0 4px 12px var(--color-accent-glow);
     }
 
     .btn-danger-outline {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: white;
-        border: 1px solid #fee2e2;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 500;
-        color: #ef4444;
+        gap: 7px;
+        padding: 6px 12px;
+        background: var(--color-header-hover);
+        border: 1px solid rgba(239,68,68,0.3);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        font-family: var(--font-family);
+        color: #ff6b6b;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--transition-fast);
     }
 
     .btn-danger-outline:hover {
-        background: #fef2f2;
-        border-color: #fca5a5;
+        background: rgba(239,68,68,0.15);
+        border-color: rgba(239,68,68,0.5);
+        color: #ff4444;
     }
 
     .transcript-layout {
@@ -572,10 +575,8 @@
     .transcript-main {
         flex: 1;
         overflow-y: auto;
-        /* Use the CSS variable if set, otherwise fallback logic in media queries if needed */
-        /* But here we set margin dynamically */
-        transition: margin-right 0.05s ease-out; /* Faster transition for resizing */
-        background: var(--gray-50);
+        transition: margin-right 0.05s ease-out;
+        background: var(--color-bg-surface);
     }
 
     /* When not resizing, we can have smooth transition. When resizing, instant. */
@@ -587,15 +588,14 @@
 
     .meeting-minutes-panel {
         position: fixed;
-        top: 64px; /* Header height */
+        top: var(--header-height);
         right: 0;
         bottom: 0;
-        /* Width set inline */
-        background: white;
-        border-left: 1px solid var(--gray-200);
+        background: var(--color-bg-secondary);
+        border-left: 1px solid var(--color-border);
         display: flex;
         flex-direction: column;
-        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.07);
         z-index: 50;
     }
 
@@ -630,18 +630,21 @@
     }
 
     .panel-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid var(--gray-100);
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--color-border-subtle);
         display: flex;
         align-items: center;
         justify-content: space-between;
+        background: var(--color-header-bg);
+        flex-shrink: 0;
     }
 
     .panel-header h3 {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--navy);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-header-text);
+        font-family: var(--font-family);
     }
 
     .panel-content {
@@ -652,18 +655,18 @@
     .btn-icon {
         background: none;
         border: none;
-        color: var(--gray-400);
+        color: var(--color-header-text-secondary);
         cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
+        padding: 5px;
+        border-radius: var(--radius-sm);
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
     .btn-icon:hover {
-        background: var(--gray-100);
-        color: var(--text-primary);
+        background: var(--color-header-hover);
+        color: var(--color-header-text);
     }
 
     /* Export Dropdown */
@@ -676,11 +679,11 @@
         top: 100%;
         right: 0;
         margin-top: 8px;
-        background: white;
-        border: 1px solid var(--gray-200);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        width: 240px;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        width: 220px;
         z-index: 200;
         padding: 4px;
         display: flex;
@@ -691,19 +694,25 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 12px;
+        padding: 9px 12px;
         border: none;
         background: none;
         text-align: left;
-        font-size: 14px;
-        color: var(--navy);
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family);
+        color: var(--color-text-primary);
         cursor: pointer;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         width: 100%;
     }
 
     .export-dropdown button:hover:not(:disabled) {
-        background: var(--lavender-light);
-        color: var(--purple);
+        background: var(--color-accent-muted);
+        color: var(--color-accent);
+    }
+
+    .export-dropdown button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
     }
 </style>

@@ -541,9 +541,9 @@
         background: var(--bg-hover);
     }
     .tool-btn.active {
-        background: var(--lavender);
-        color: var(--purple);
-        border-color: var(--lavender-dark);
+        background: var(--color-secondary-muted);
+        color: var(--color-secondary);
+        border-color: rgba(0, 168, 184, 0.3);
     }
 
     .divider {
@@ -693,9 +693,9 @@
     }
 
     :global(.ProseMirror th) {
-        background: var(--lavender);
+        background: var(--color-bg-surface);
         font-weight: 600;
-        color: var(--navy);
+        color: var(--color-text-heading);
     }
 
     :global(.ProseMirror tr:nth-child(even)) {
@@ -703,7 +703,7 @@
     }
 
     :global(.ProseMirror tr:hover) {
-        background: var(--lavender-light);
+        background: var(--color-bg-hover);
     }
 
     /* Decision column styling */
@@ -787,23 +787,19 @@
     }
 
     .action-btn.active {
-        background: var(--lavender);
-        border-color: var(--purple);
-        color: var(--purple);
+        background: var(--color-secondary-muted);
+        border-color: var(--color-secondary);
+        color: var(--color-secondary);
     }
 
     .action-btn.regenerate {
-        background: linear-gradient(
-            135deg,
-            var(--magenta) 0%,
-            var(--purple) 100%
-        );
+        background: var(--color-accent);
+        border-color: var(--color-accent);
         color: white;
-        border: none;
     }
 
     .action-btn.regenerate:hover {
-        opacity: 0.9;
+        background: var(--color-accent-hover);
     }
 
     /* Content Area with Sidebar */
@@ -890,13 +886,13 @@
     }
 
     .history-item:hover {
-        background: var(--lavender-light);
-        border-color: var(--purple);
+        background: var(--color-accent-muted);
+        border-color: var(--color-accent);
     }
 
     .history-item.current {
-        background: var(--lavender);
-        border-color: var(--purple);
+        background: var(--color-accent-muted);
+        border-color: var(--color-accent);
     }
 
     .history-date {
@@ -912,7 +908,7 @@
 
     .current-badge {
         font-size: 9px;
-        background: var(--purple);
+        background: var(--color-accent);
         color: white;
         padding: 2px 6px;
         border-radius: 8px;

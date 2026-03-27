@@ -196,6 +196,7 @@
             ></textarea>
             <button
                 class="send-btn"
+                aria-label="Send message"
                 onclick={handleSend}
                 disabled={!inputValue.trim() || $chatStore.isLoading}
             >
@@ -266,19 +267,20 @@
 
     .suggestion-chip {
         padding: 10px 14px;
-        background: var(--lavender-light, #f5f0ff);
-        border: 1px solid var(--lavender-dark, #e0d4f5);
-        border-radius: 12px;
-        font-size: 13px;
-        color: var(--purple, #7c3aed);
+        background: var(--color-secondary-muted);
+        border: 1px solid rgba(0, 168, 184, 0.25);
+        border-radius: 10px;
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family);
+        color: var(--color-secondary);
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--transition-fast);
         text-align: left;
     }
 
     .suggestion-chip:hover {
-        background: var(--lavender-dark, #e0d4f5);
-        border-color: var(--purple, #7c3aed);
+        background: rgba(0, 168, 184, 0.18);
+        border-color: var(--color-secondary);
         transform: translateY(-1px);
     }
 
@@ -312,11 +314,7 @@
     }
 
     .message.user .message-bubble {
-        background: linear-gradient(
-            135deg,
-            var(--magenta, #e91388) 0%,
-            var(--purple, #7c3aed) 100%
-        );
+        background: var(--color-accent);
         color: white;
         border-bottom-right-radius: 4px;
     }
@@ -437,24 +435,20 @@
     .send-btn {
         width: 34px;
         height: 34px;
-        border-radius: 12px;
+        border-radius: var(--radius-md);
         border: none;
-        background: linear-gradient(
-            135deg,
-            var(--magenta, #e91388) 0%,
-            var(--purple, #7c3aed) 100%
-        );
+        background: var(--color-accent);
         color: white;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: all 0.2s;
+        transition: all var(--transition-fast);
     }
 
     .send-btn:hover:not(:disabled) {
-        opacity: 0.85;
+        background: var(--color-accent-hover);
         transform: scale(1.05);
     }
 

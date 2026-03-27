@@ -11,10 +11,21 @@ def _headers():
 
 
 async def submit_transcription(audio_url: str, options: dict) -> str:
-    """Submit a transcription job to AssemblyAI. Returns transcript ID."""
+    """Submit a transcription job to AssemblyAI.
+
+    Uses Universal-3 Pro (with Universal-2 fallback for full language coverage)
+    and Medical Mode for purpose-built accuracy on medication names, procedures,
+    dosages, and clinical terminology.
+
+    Medical Mode docs: https://www.assemblyai.com/docs/pre-recorded-audio/medical-mode
+    Note: Medical Mode is a paid add-on. Ensure it is enabled on your account.
+    """
     payload = {
         "audio_url": audio_url,
+        "speech_models": ["universal-3-pro", "universal-2"],
+        "language_detection": True,
         "speaker_labels": True,
+        "domain": "medical-v1",
         **_build_options(options),
     }
     async with httpx.AsyncClient(timeout=30) as client:
@@ -56,32 +67,27 @@ async def identify_speakers(transcript_id: str, context: str, final_model: str) 
 
 
 def _build_options(options: dict) -> dict:
-    """Map frontend options dict to AssemblyAI request fields."""
+    """Map frontend options dict to AssemblyAI request fields.
+
+    Note: Universal-3 Pro does not support legacy v2 features like
+    word_boost, summarization, iab_categories, sentiment_analysis,
+    or auto_highlights. Use keyterms_prompt for domain-specific term boosting.
+    Medical Mode (domain: medical-v1) handles general medical entity correction.
+    keyterms_prompt can stack on top for case/study-specific terms.
+    """
     payload = {}
 
     max_speakers = options.get("max_speakers")
     if max_speakers:
         payload["speakers_expected"] = max_speakers
 
+    # keyterms_prompt stacks with Medical Mode for study-specific terms
+    # (e.g., drug names unique to a specific clinical trial or study)
     boost_words = options.get("boost_words", [])
     if boost_words:
-        payload["word_boost"] = boost_words[:200]
+        payload["keyterms_prompt"] = boost_words[:1000]
 
-    if options.get("include_summary"):
-        payload["summarization"] = True
-        payload["summary_model"] = "informative"
-        payload["summary_type"] = "bullets"
-
-    if options.get("detect_topics"):
-        payload["iab_categories"] = True
-
-    if options.get("analyze_sentiment"):
-        payload["sentiment_analysis"] = True
-
-    if options.get("extract_key_phrases"):
-        payload["auto_highlights"] = True
-
-    # Speaker identification modes
+    # Speaker identification modes via speech_understanding
     mode = options.get("speaker_label_mode", "generic")
     values = options.get("speaker_values", [])
     speech_understanding = _build_speech_understanding(mode, values)
